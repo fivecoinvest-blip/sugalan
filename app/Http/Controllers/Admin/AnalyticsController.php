@@ -486,6 +486,6 @@ class AnalyticsController extends Controller
     {
         return Bet::where('status', 'win')
             ->whereDate('created_at', Carbon::today())
-            ->sum('payout_amount');
+            ->sum('payout');
     }
 }
