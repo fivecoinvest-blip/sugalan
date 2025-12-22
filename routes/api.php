@@ -17,6 +17,9 @@ use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\PromotionController as AdminPromotionController;
 use App\Http\Controllers\Api\VerificationController;
+use App\Http\Controllers\GdprController;
+use App\Http\Controllers\ResponsibleGamingController;
+use App\Http\Controllers\CookieConsentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -220,3 +223,47 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
         });
     });
 });
+
+// GDPR routes (protected)
+Route::middleware('auth:api')->prefix('gdpr')->group(function () {
+    Route::get('/summary', [GdprController::class, 'summary']);
+    Route::post('/export', [GdprController::class, 'export']);
+    Route::get('/download/{token}', [GdprController::class, 'download'])->name('gdpr.download');
+    Route::post('/rectification', [GdprController::class, 'rectification']);
+    Route::post('/delete-account', [GdprController::class, 'deleteAccount']);
+});
+
+// Responsible Gaming routes (protected)
+Route::middleware('auth:api')->prefix('responsible-gaming')->group(function () {
+    Route::get('/settings', [ResponsibleGamingController::class, 'getSettings']);
+    Route::get('/statistics', [ResponsibleGamingController::class, 'getStatistics']);
+    Route::get('/check-playability', [ResponsibleGamingController::class, 'checkPlayability']);
+    
+    // Limits
+    Route::post('/deposit-limits', [ResponsibleGamingController::class, 'setDepositLimits']);
+    Route::post('/wager-limits', [ResponsibleGamingController::class, 'setWagerLimits']);
+    Route::post('/loss-limits', [ResponsibleGamingController::class, 'setLossLimits']);
+    Route::post('/session-limits', [ResponsibleGamingController::class, 'setSessionLimits']);
+    
+    // Self-exclusion
+    Route::post('/self-exclusion', [ResponsibleGamingController::class, 'enableSelfExclusion']);
+    Route::post('/self-exclusion/remove-request', [ResponsibleGamingController::class, 'requestSelfExclusionRemoval']);
+    
+    // Cool-off
+    Route::post('/cool-off', [ResponsibleGamingController::class, 'enableCoolOff']);
+    
+    // Session management
+    Route::post('/session/start', [ResponsibleGamingController::class, 'startSession']);
+    Route::get('/reality-check', [ResponsibleGamingController::class, 'realityCheck']);
+});
+
+// Cookie Consent routes
+Route::prefix('cookies')->group(function () {
+    Route::get('/preferences', [CookieConsentController::class, 'getPreferences']);
+    Route::post('/preferences', [CookieConsentController::class, 'savePreferences']);
+    Route::post('/accept-all', [CookieConsentController::class, 'acceptAll']);
+    Route::post('/reject-all', [CookieConsentController::class, 'rejectAll']);
+    Route::delete('/consent', [CookieConsentController::class, 'clearConsent']);
+});
+
+
