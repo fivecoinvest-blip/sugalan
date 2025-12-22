@@ -68,10 +68,10 @@ class KenoGameTest extends TestCase
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/games/keno/play', [
                 'bet_amount' => 50.00,
-                'selected_numbers' => [5],
+                'selected_numbers' => [5, 5, 10],
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
 
         // Too many numbers
@@ -81,7 +81,7 @@ class KenoGameTest extends TestCase
                 'selected_numbers' => range(1, 15),
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -94,7 +94,7 @@ class KenoGameTest extends TestCase
                 'selected_numbers' => [5, 5, 12, 18, 25, 33],
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -105,20 +105,20 @@ class KenoGameTest extends TestCase
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/games/keno/play', [
                 'bet_amount' => 50.00,
-                'selected_numbers' => [0, 5, 12, 18, 25, 33],
+                'selected_numbers' => [0, 5, 10],
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
 
-        // Number too high
+        // Test number too high
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/games/keno/play', [
                 'bet_amount' => 50.00,
-                'selected_numbers' => [5, 12, 18, 25, 33, 41],
+                'selected_numbers' => [5, 10, 41],
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -227,7 +227,7 @@ class KenoGameTest extends TestCase
 
         $this->assertDatabaseHas('bets', [
             'user_id' => $this->user->id,
-            'game' => 'keno',
+            'game_type' => 'keno',
             'bet_amount' => 50.00,
         ]);
     }

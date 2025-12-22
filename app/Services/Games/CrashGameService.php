@@ -80,6 +80,7 @@ class CrashGameService
                 'multiplier' => 1.00,
                 'payout' => 0,
                 'profit' => -$betAmount,
+                'target' => $autoCashout,
                 'server_seed_hash' => $roundData['server_seed_hash'],
                 'client_seed' => 'round_' . $roundData['round_id'],
                 'nonce' => 0,
@@ -121,11 +122,15 @@ class CrashGameService
                 ->where('user_id', $user->id)
                 ->where('status', 'pending')
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            if (!$bet) {
+                throw new \InvalidArgumentException('Bet not found or already cashed out');
+            }
 
             $roundData = Cache::get('crash_round_current');
-            if (!$roundData || $roundData['status'] !== 'running') {
-                throw new \Exception('Round not in progress');
+            if (!$roundData || ($roundData['status'] === 'crashed' || $roundData['status'] === 'ended')) {
+                throw new \Exception('Round has ended');
             }
 
             // Verify multiplier hasn't crashed yet

@@ -44,17 +44,17 @@ class KenoGameService
         // Validate selections
         $count = count($selectedNumbers);
         if ($count < 1 || $count > 10) {
-            throw new \Exception('Must select between 1 and 10 numbers');
+            throw new \InvalidArgumentException('Must select between 1 and 10 numbers');
         }
 
         foreach ($selectedNumbers as $num) {
             if ($num < 1 || $num > self::MAX_NUMBER) {
-                throw new \Exception("Number must be between 1 and " . self::MAX_NUMBER);
+                throw new \InvalidArgumentException("Number must be between 1 and " . self::MAX_NUMBER);
             }
         }
 
         if (count($selectedNumbers) !== count(array_unique($selectedNumbers))) {
-            throw new \Exception('Cannot select duplicate numbers');
+            throw new \InvalidArgumentException('Cannot select duplicate numbers');
         }
 
         return DB::transaction(function () use ($user, $betAmount, $selectedNumbers, $count) {
@@ -116,11 +116,16 @@ class KenoGameService
                 'selected_numbers' => $selectedNumbers,
                 'drawn_numbers' => $drawnNumbers,
                 'hits' => $hits,
+                'matches' => $hits,
                 'multiplier' => $multiplier,
                 'bet_amount' => $betAmount,
                 'payout' => round($payout, 2),
                 'profit' => round($profit, 2),
                 'is_win' => $profit > 0,
+                'balance' => [
+                    'real' => $user->wallet->real_balance,
+                    'bonus' => $user->wallet->bonus_balance,
+                ],
                 'provably_fair' => [
                     'server_seed_hash' => $seed->server_seed_hash,
                     'client_seed' => $seed->client_seed,

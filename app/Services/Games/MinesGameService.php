@@ -28,7 +28,7 @@ class MinesGameService
     public function start(User $user, float $betAmount, int $mineCount): array
     {
         if ($mineCount < 1 || $mineCount > 24) {
-            throw new \Exception('Mine count must be between 1 and 24');
+            throw new \InvalidArgumentException('Mine count must be between 1 and 24');
         }
 
         return DB::transaction(function () use ($user, $betAmount, $mineCount) {
@@ -78,8 +78,15 @@ class MinesGameService
                 'bet_id' => $bet->id,
                 'grid_size' => self::GRID_SIZE,
                 'mine_count' => $mineCount,
+                'mines_count' => $mineCount,
+                'revealed_tiles' => [],
+                'current_multiplier' => 1.00,
                 'total_tiles' => self::GRID_SIZE * self::GRID_SIZE,
                 'multiplier' => 1.00,
+                'balance' => [
+                    'real' => $user->wallet->real_balance,
+                    'bonus' => $user->wallet->bonus_balance,
+                ],
             ];
         });
     }
@@ -90,7 +97,7 @@ class MinesGameService
     public function reveal(User $user, int $betId, int $position): array
     {
         if ($position < 0 || $position >= (self::GRID_SIZE * self::GRID_SIZE)) {
-            throw new \Exception('Invalid tile position');
+            throw new \InvalidArgumentException('Invalid tile position');
         }
 
         return DB::transaction(function () use ($user, $betId, $position) {
@@ -98,7 +105,11 @@ class MinesGameService
                 ->where('user_id', $user->id)
                 ->where('status', 'pending')
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+                
+            if (!$bet) {
+                throw new \InvalidArgumentException('Bet not found or game already ended');
+            }
 
             $gameState = Cache::get("mines_game_{$user->id}_{$betId}");
             if (!$gameState) {
@@ -106,7 +117,7 @@ class MinesGameService
             }
 
             if (in_array($position, $gameState['revealed_tiles'])) {
-                throw new \Exception('Tile already revealed');
+                throw new \InvalidArgumentException('Tile already revealed');
             }
 
             $isMine = in_array($position, $gameState['mine_positions']);
@@ -136,6 +147,10 @@ class MinesGameService
                     'game_over' => true,
                     'gems_found' => $gameState['gems_found'],
                     'mine_positions' => $gameState['mine_positions'],
+                    'balance' => [
+                        'real' => $user->wallet->real_balance,
+                        'bonus' => $user->wallet->bonus_balance,
+                    ],
                 ];
             } else {
                 // Found a gem
@@ -166,10 +181,17 @@ class MinesGameService
                     'bet_id' => $bet->id,
                     'position' => $position,
                     'is_mine' => false,
+                    'game_over' => false,
                     'gems_found' => $gameState['gems_found'],
+                    'revealed_tiles' => $gameState['revealed_tiles'],
                     'multiplier' => round($gameState['multiplier'], 2),
+                    'current_multiplier' => round($gameState['multiplier'], 2),
                     'potential_payout' => round($bet->bet_amount * $gameState['multiplier'], 2),
                     'can_cashout' => true,
+                    'balance' => [
+                        'real' => $user->wallet->real_balance,
+                        'bonus' => $user->wallet->bonus_balance,
+                    ],
                 ];
             }
         });
@@ -222,9 +244,14 @@ class MinesGameService
                 'bet_id' => $bet->id,
                 'gems_found' => $gameState['gems_found'],
                 'final_multiplier' => round($gameState['multiplier'], 2),
+                'multiplier' => round($gameState['multiplier'], 2),
                 'payout' => round($payout, 2),
                 'profit' => round($profit, 2),
                 'mine_positions' => $gameState['mine_positions'],
+                'balance' => [
+                    'real' => $user->wallet->real_balance,
+                    'bonus' => $user->wallet->bonus_balance,
+                ],
             ];
         });
     }
@@ -234,11 +261,15 @@ class MinesGameService
      */
     private function calculateMultiplier(int $safeTiles, int $tilesRevealed): float
     {
+        // Multiplier should increase as you reveal more tiles
+        // Each safe tile revealed increases the multiplier
         $multiplier = 1.0;
-        $houseEdge = 0.01;
+        $houseEdge = 0.03; // 3% house edge
 
-        for ($i = 1; $i <= $tilesRevealed; $i++) {
-            $multiplier *= ($safeTiles / ($safeTiles - $i + 1)) * (1 - $houseEdge);
+        for ($i = 0; $i < $tilesRevealed; $i++) {
+            // Progressive multiplier: (totalSafeTiles / remainingSafeTiles)
+            $remainingSafe = $safeTiles - $i;
+            $multiplier *= (($safeTiles + 3.0) / $remainingSafe) * (1 - $houseEdge);
         }
 
         return $multiplier;

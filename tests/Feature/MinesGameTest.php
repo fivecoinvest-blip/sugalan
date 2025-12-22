@@ -69,7 +69,7 @@ class MinesGameTest extends TestCase
                 'mines_count' => 0,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
 
         // Too many mines
@@ -79,7 +79,7 @@ class MinesGameTest extends TestCase
                 'mines_count' => 25,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -220,7 +220,7 @@ class MinesGameTest extends TestCase
                 'tile_index' => 5,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -261,7 +261,7 @@ class MinesGameTest extends TestCase
 
         $this->assertDatabaseHas('bets', [
             'user_id' => $this->user->id,
-            'game' => 'mines',
+            'game_type' => 'mines',
             'bet_amount' => 50.00,
         ]);
     }

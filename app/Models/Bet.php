@@ -21,6 +21,7 @@ class Bet extends Model
         'profit',
         'result',
         'status',
+        'target',
         'server_seed_hash',
         'client_seed',
         'nonce',

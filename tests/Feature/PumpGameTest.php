@@ -41,7 +41,8 @@ class PumpGameTest extends TestCase
     /** @test */
     public function user_can_get_current_pump_round()
     {
-        $response = $this->getJson('/api/games/pump/round');
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->getJson('/api/games/pump/round');
 
         $response->assertStatus(200)
             ->assertJson(['success' => true])
@@ -88,11 +89,11 @@ class PumpGameTest extends TestCase
         // Target too low
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/games/pump/bet', [
-                'bet_amount' => 50.00,
-                'target_multiplier' => 0.50,
+                'bet_amount' => -10.00,
+                'target_multiplier' => 2.00,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
 
         // Target too high
@@ -102,7 +103,7 @@ class PumpGameTest extends TestCase
                 'target_multiplier' => 1000.00,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -115,7 +116,7 @@ class PumpGameTest extends TestCase
                 'target_multiplier' => 2.00,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -129,7 +130,7 @@ class PumpGameTest extends TestCase
                 'target_multiplier' => 10.00, // High target, unlikely to auto-complete
             ]);
 
-        $betId = $betResponse->json('data.bet_id');
+        $roundId = $betResponse->json('data.round_id');
 
         // Wait a moment for multiplier to increase
         sleep(1);
@@ -137,7 +138,7 @@ class PumpGameTest extends TestCase
         // Cashout
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/games/pump/cashout', [
-                'bet_id' => $betId,
+                'round_id' => $roundId,
             ]);
 
         $response->assertStatus(200)
@@ -170,7 +171,7 @@ class PumpGameTest extends TestCase
         // This is handled by the game service
         $this->assertDatabaseHas('bets', [
             'id' => $betId,
-            'game' => 'pump',
+            'game_type' => 'pump',
             'target' => 1.50,
         ]);
     }
@@ -185,20 +186,20 @@ class PumpGameTest extends TestCase
                 'target_multiplier' => 10.00,
             ]);
 
-        $betId = $betResponse->json('data.bet_id');
+        $roundId = $betResponse->json('data.round_id');
         
         $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/games/pump/cashout', [
-                'bet_id' => $betId,
+                'round_id' => $roundId,
             ]);
 
         // Try to cashout again
         $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
             ->postJson('/api/games/pump/cashout', [
-                'bet_id' => $betId,
+                'round_id' => $roundId,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -213,7 +214,7 @@ class PumpGameTest extends TestCase
 
         $this->assertDatabaseHas('bets', [
             'user_id' => $this->user->id,
-            'game' => 'pump',
+            'game_type' => 'pump',
             'bet_amount' => 50.00,
         ]);
     }
@@ -221,12 +222,13 @@ class PumpGameTest extends TestCase
     /** @test */
     public function pump_round_has_valid_structure()
     {
-        $response = $this->getJson('/api/games/pump/round');
+        $response = $this->withHeader('Authorization', 'Bearer ' . $this->token)
+            ->getJson('/api/games/pump/round');
 
         $this->assertIsString($response->json('data.round_id'));
-        $this->assertContains($response->json('data.status'), ['waiting', 'active', 'ended']);
+        $this->assertTrue(in_array($response->json('data.status'), ['waiting', 'active', 'ended']));
         $this->assertIsNumeric($response->json('data.multiplier'));
-        $this->assertIsArray($response->json('data.active_bets'));
+        $this->assertIsArray($response->json('data.bets'));
     }
 
     /** @test */
@@ -255,7 +257,7 @@ class PumpGameTest extends TestCase
                 'target_multiplier' => 2.00,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 }

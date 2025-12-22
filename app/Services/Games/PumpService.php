@@ -66,8 +66,8 @@ class PumpService
         // Generate burst point (1.00 - 50.00x with exponential distribution)
         $burstPoint = $this->generateBurstPoint();
         
-        // Generate server seed for provably fair
-        $serverSeed = $this->provablyFairService->generateServerSeed();
+        // Generate server seed for provably fair (simple random string)
+        $serverSeed = bin2hex(random_bytes(32));
         $serverSeedHash = hash('sha256', $serverSeed);
         
         $roundData = [
@@ -76,9 +76,11 @@ class PumpService
             'start_time' => null,
             'burst_point' => $burstPoint,
             'current_multiplier' => 1.00,
+            'multiplier' => 1.00,
             'server_seed' => $serverSeed,
             'server_seed_hash' => $serverSeedHash,
             'bets' => [],
+            'active_bets' => 0,
             'active_players' => 0,
         ];
 
@@ -112,11 +114,15 @@ class PumpService
     /**
      * Place a bet for the current round
      */
-    public function placeBet(User $user, float $betAmount)
+    public function placeBet(User $user, float $betAmount, ?float $targetMultiplier = null)
     {
         // Validation
         if ($betAmount < 1) {
-            throw new \Exception('Minimum bet is ₱1');
+            throw new \InvalidArgumentException('Minimum bet is ₱1');
+        }
+        
+        if ($targetMultiplier !== null && ($targetMultiplier < 1.01 || $targetMultiplier > 50)) {
+            throw new \InvalidArgumentException('Target multiplier must be between 1.01 and 50');
         }
 
         $currentRound = $this->getCurrentRound();
@@ -126,12 +132,13 @@ class PumpService
             throw new \Exception('Cannot place bet during active round');
         }
 
-        return DB::transaction(function () use ($user, $betAmount, $currentRound) {
-            // Lock real balance
-            $this->walletService->lockBalance($user, $betAmount);
+        return DB::transaction(function () use ($user, $betAmount, $targetMultiplier, $currentRound) {
+            // Deduct bet from wallet
+            $balanceUsed = $this->walletService->deductBet($user, $betAmount);
 
             // Get or create seed for user
-            $seed = $this->provablyFairService->getOrCreateSeed($user);
+            $seed = $this->provablyFairService->getActiveSeed($user->id);
+            $nonce = $seed->incrementNonce();
 
             // Create bet record
             $bet = Bet::create([
@@ -139,18 +146,20 @@ class PumpService
                 'game_type' => 'pump',
                 'bet_amount' => $betAmount,
                 'status' => 'pending',
-                'multiplier' => null,
+                'multiplier' => 1.0000,
                 'payout' => 0,
                 'profit' => -$betAmount,
-                'seed_id' => $seed->id,
-                'client_seed' => $seed->client_seed,
                 'server_seed_hash' => $currentRound['server_seed_hash'],
-                'nonce' => $seed->nonce,
-                'game_data' => [
+                'client_seed' => $seed->client_seed,
+                'nonce' => $nonce,
+                'target' => $targetMultiplier,
+                'game_result' => [
                     'round_id' => $currentRound['round_id'],
+                    'target_multiplier' => $targetMultiplier,
                     'cashed_out' => false,
                     'cashout_multiplier' => null,
                 ],
+                'is_bonus_bet' => $balanceUsed['bonus_used'] > 0,
             ]);
 
             // Add bet to round cache
@@ -168,13 +177,19 @@ class PumpService
 
             // Update round data
             $currentRound['active_players'] = count($bets);
+            $currentRound['active_bets'] = count($bets);
             Cache::put("pump_round_{$currentRound['round_id']}", $currentRound, now()->addMinutes(10));
 
             return [
                 'bet_id' => $bet->id,
                 'round_id' => $currentRound['round_id'],
                 'bet_amount' => $betAmount,
+                'target_multiplier' => $targetMultiplier,
                 'server_seed_hash' => $currentRound['server_seed_hash'],
+                'balance' => [
+                    'real' => $user->wallet->real_balance,
+                    'bonus' => $user->wallet->bonus_balance,
+                ],
             ];
         });
     }
@@ -190,18 +205,18 @@ class PumpService
             throw new \Exception('Round not found');
         }
 
-        if ($roundData['status'] !== 'pumping') {
-            throw new \Exception('Round is not active');
+        if ($roundData['status'] === 'burst' || $roundData['status'] === 'ended') {
+            throw new \Exception('Round has ended');
         }
 
         $bets = Cache::get("pump_round_{$roundId}_bets", []);
         
         if (!isset($bets[$user->id])) {
-            throw new \Exception('No active bet found');
+            throw new \InvalidArgumentException('No active bet found');
         }
 
         if ($bets[$user->id]['cashed_out']) {
-            throw new \Exception('Already cashed out');
+            throw new \InvalidArgumentException('Already cashed out');
         }
 
         return DB::transaction(function () use ($user, $roundId, $roundData, &$bets) {
@@ -210,29 +225,28 @@ class PumpService
             
             // Calculate payout
             $payout = $betData['bet_amount'] * $currentMultiplier;
+            $profit = $payout - $betData['bet_amount'];
             
             // Update bet record
             $bet = Bet::find($betData['bet_id']);
             $bet->update([
-                'status' => 'won',
+                'status' => 'completed',
+                'result' => 'win',
                 'multiplier' => $currentMultiplier,
                 'payout' => $payout,
-                'profit' => $payout - $betData['bet_amount'],
-                'game_data' => array_merge($bet->game_data ?? [], [
+                'profit' => $profit,
+                'game_result' => array_merge($bet->game_result ?? [], [
                     'cashed_out' => true,
                     'cashout_multiplier' => $currentMultiplier,
                 ]),
             ]);
 
-            // Process payout (unlock + credit)
-            $this->walletService->unlockBalance($user, $betData['bet_amount']);
-            $this->walletService->addBalance($user, $payout, 'game_win', "Pump cashout at {$currentMultiplier}x");
-
-            // Update wagering for bonuses and VIP
-            $this->walletService->updateWagering($user, $betData['bet_amount']);
+            // Credit winnings
+            $this->walletService->creditWin($user, $payout, $bet->is_bonus_bet);
             
             // Check VIP upgrade
-            $this->vipService->checkAndUpgradeVip($user);
+            $user->refresh();
+            $this->vipService->checkForUpgrade($user);
 
             // Update cache
             $bets[$user->id]['cashed_out'] = true;
@@ -242,9 +256,13 @@ class PumpService
 
             return [
                 'success' => true,
-                'multiplier' => $currentMultiplier,
-                'payout' => $payout,
-                'profit' => $payout - $betData['bet_amount'],
+                'multiplier' => round($currentMultiplier, 2),
+                'payout' => round($payout, 2),
+                'profit' => round($profit, 2),
+                'balance' => [
+                    'real' => $user->wallet->real_balance,
+                    'bonus' => $user->wallet->bonus_balance,
+                ],
             ];
         });
     }

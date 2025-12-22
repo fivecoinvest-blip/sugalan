@@ -105,7 +105,7 @@ class WheelGameTest extends TestCase
                 'risk_level' => 'extreme',
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -155,7 +155,7 @@ class WheelGameTest extends TestCase
 
         $this->assertDatabaseHas('bets', [
             'user_id' => $this->user->id,
-            'game' => 'wheel',
+            'game_type' => 'wheel',
             'bet_amount' => 50.00,
         ]);
     }
@@ -231,7 +231,7 @@ class WheelGameTest extends TestCase
                 'risk_level' => 'medium',
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 }

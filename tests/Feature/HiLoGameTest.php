@@ -142,7 +142,7 @@ class HiLoGameTest extends TestCase
                 'prediction' => 'invalid',
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -258,7 +258,7 @@ class HiLoGameTest extends TestCase
 
         $this->assertDatabaseHas('bets', [
             'user_id' => $this->user->id,
-            'game' => 'hilo',
+            'game_type' => 'hilo',
             'bet_amount' => 50.00,
         ]);
     }
@@ -286,7 +286,7 @@ class HiLoGameTest extends TestCase
                 'prediction' => 'higher',
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 }

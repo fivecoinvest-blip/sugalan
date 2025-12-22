@@ -27,6 +27,7 @@ return new class extends Migration
             $table->decimal('multiplier', 10, 4)->default(1.0000);
             $table->decimal('payout', 20, 2)->default(0);
             $table->decimal('profit', 20, 2)->default(0);
+            $table->decimal('target', 10, 4)->nullable(); // For auto-cashout, target number, etc.
             
             // Result
             $table->enum('result', ['win', 'loss', 'push'])->nullable();

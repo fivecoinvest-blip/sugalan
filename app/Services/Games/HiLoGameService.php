@@ -70,9 +70,15 @@ class HiLoGameService
             return [
                 'bet_id' => $bet->id,
                 'current_card' => $card,
+                'current_multiplier' => 1.00,
+                'cards_played' => 0,
                 'round' => 0,
                 'multiplier' => 1.00,
                 'can_cashout' => false,
+                'balance' => [
+                    'real' => $user->wallet->real_balance,
+                    'bonus' => $user->wallet->bonus_balance,
+                ],
             ];
         });
     }
@@ -91,7 +97,11 @@ class HiLoGameService
                 ->where('user_id', $user->id)
                 ->where('status', 'pending')
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+                
+            if (!$bet) {
+                throw new \InvalidArgumentException('Bet not found or game already ended');
+            }
 
             $gameState = Cache::get("hilo_game_{$user->id}_{$betId}");
             if (!$gameState) {
@@ -132,11 +142,21 @@ class HiLoGameService
                 return [
                     'bet_id' => $bet->id,
                     'is_correct' => true,
+                    'correct' => true,
                     'new_card' => $newCard,
+                    'next_card' => $newCard,
+                    'current_card' => $newCard,
+                    'current_multiplier' => round($gameState['multiplier'], 2),
+                    'cards_played' => $gameState['round'],
                     'round' => $gameState['round'],
                     'multiplier' => round($gameState['multiplier'], 2),
                     'potential_payout' => round($bet->bet_amount * $gameState['multiplier'], 2),
                     'can_cashout' => true,
+                    'game_over' => false,
+                    'balance' => [
+                        'real' => $user->wallet->real_balance,
+                        'bonus' => $user->wallet->bonus_balance,
+                    ],
                 ];
             } else {
                 // Loss - game over
@@ -158,10 +178,16 @@ class HiLoGameService
                 return [
                     'bet_id' => $bet->id,
                     'is_correct' => false,
+                    'correct' => false,
                     'new_card' => $newCard,
+                    'next_card' => $newCard,
                     'game_over' => true,
                     'final_multiplier' => round($gameState['multiplier'], 2),
                     'payout' => 0,
+                    'balance' => [
+                        'real' => $user->wallet->real_balance,
+                        'bonus' => $user->wallet->bonus_balance,
+                    ],
                 ];
             }
         });
@@ -184,10 +210,7 @@ class HiLoGameService
                 throw new \Exception('Game session expired');
             }
 
-            if ($gameState['round'] === 0) {
-                throw new \Exception('Cannot cashout before first prediction');
-            }
-
+            // Allow cashout at round 0 with 1x multiplier (get bet back)
             $payout = $bet->bet_amount * $gameState['multiplier'];
             $profit = $payout - $bet->bet_amount;
 
@@ -216,9 +239,14 @@ class HiLoGameService
             return [
                 'bet_id' => $bet->id,
                 'rounds_won' => $gameState['round'],
+                'multiplier' => round($gameState['multiplier'], 2),
                 'final_multiplier' => round($gameState['multiplier'], 2),
                 'payout' => round($payout, 2),
                 'profit' => round($profit, 2),
+                'balance' => [
+                    'real' => $user->wallet->real_balance,
+                    'bonus' => $user->wallet->bonus_balance,
+                ],
             ];
         });
     }

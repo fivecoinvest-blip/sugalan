@@ -90,7 +90,7 @@ class PlinkoGameTest extends TestCase
                 'rows' => 12,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -122,7 +122,7 @@ class PlinkoGameTest extends TestCase
                 'rows' => 10,
             ]);
 
-        $response->assertStatus(400)
+        $response->assertStatus(422)
             ->assertJson(['success' => false]);
     }
 
@@ -175,7 +175,7 @@ class PlinkoGameTest extends TestCase
 
         $this->assertDatabaseHas('bets', [
             'user_id' => $this->user->id,
-            'game' => 'plinko',
+            'game_type' => 'plinko',
             'bet_amount' => 50.00,
         ]);
     }

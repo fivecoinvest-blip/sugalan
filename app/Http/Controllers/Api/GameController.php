@@ -73,6 +73,8 @@ class GameController extends Controller
             $result = $this->hiloGame->start($user, $request->bet_amount);
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -82,7 +84,7 @@ class GameController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'bet_id' => 'required|integer',
-            'prediction' => 'required|in:high,low',
+            'prediction' => 'required|in:high,low,higher,lower',
         ]);
 
         if ($validator->fails()) {
@@ -91,9 +93,17 @@ class GameController extends Controller
 
         try {
             $user = JWTAuth::parseToken()->authenticate();
-            $result = $this->hiloGame->predict($user, $request->bet_id, $request->prediction);
+            
+            // Normalize prediction (higher -> high, lower -> low)
+            $prediction = $request->prediction;
+            if ($prediction === 'higher') $prediction = 'high';
+            if ($prediction === 'lower') $prediction = 'low';
+            
+            $result = $this->hiloGame->predict($user, $request->bet_id, $prediction);
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -114,6 +124,8 @@ class GameController extends Controller
             $result = $this->hiloGame->cashout($user, $request->bet_id);
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -124,7 +136,8 @@ class GameController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'bet_amount' => 'required|numeric|min:1',
-            'mine_count' => 'required|integer|min:1|max:24',
+            'mine_count' => 'nullable|integer|min:1|max:24',
+            'mines_count' => 'nullable|integer|min:1|max:24',
         ]);
 
         if ($validator->fails()) {
@@ -133,9 +146,12 @@ class GameController extends Controller
 
         try {
             $user = JWTAuth::parseToken()->authenticate();
-            $result = $this->minesGame->start($user, $request->bet_amount, $request->mine_count);
+            $mineCount = $request->mines_count ?? $request->mine_count ?? 5;
+            $result = $this->minesGame->start($user, $request->bet_amount, $mineCount);
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -145,7 +161,8 @@ class GameController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'bet_id' => 'required|integer',
-            'position' => 'required|integer|min:0|max:24',
+            'position' => 'nullable|integer|min:0|max:24',
+            'tile_index' => 'nullable|integer|min:0|max:24',
         ]);
 
         if ($validator->fails()) {
@@ -154,9 +171,12 @@ class GameController extends Controller
 
         try {
             $user = JWTAuth::parseToken()->authenticate();
-            $result = $this->minesGame->reveal($user, $request->bet_id, $request->position);
+            $position = $request->tile_index ?? $request->position;
+            $result = $this->minesGame->reveal($user, $request->bet_id, $position);
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -177,6 +197,8 @@ class GameController extends Controller
             $result = $this->minesGame->cashout($user, $request->bet_id);
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -187,11 +209,22 @@ class GameController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'bet_amount' => 'required|numeric|min:1',
-            'risk' => 'nullable|in:low,medium,high',
+            'risk_level' => 'nullable|in:low,medium,high',
+            'rows' => 'nullable|in:8,12,16',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        // Validate risk_level if provided
+        if ($request->has('risk_level') && !in_array($request->risk_level, ['low', 'medium', 'high'])) {
+            return response()->json(['success' => false, 'message' => 'Invalid risk level'], 400);
+        }
+
+        // Validate rows if provided
+        if ($request->has('rows') && !in_array($request->rows, [8, 12, 16])) {
+            return response()->json(['success' => false, 'message' => 'Invalid row count'], 400);
         }
 
         try {
@@ -199,10 +232,13 @@ class GameController extends Controller
             $result = $this->plinkoGame->play(
                 $user,
                 $request->bet_amount,
-                $request->risk ?? 'low'
+                $request->risk_level ?? $request->risk ?? 'low',
+                $request->rows ?? 16
             );
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -230,6 +266,8 @@ class GameController extends Controller
             );
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -241,6 +279,7 @@ class GameController extends Controller
         $validator = Validator::make($request->all(), [
             'bet_amount' => 'required|numeric|min:1',
             'risk' => 'nullable|in:low,medium,high',
+            'risk_level' => 'nullable|in:low,medium,high',
         ]);
 
         if ($validator->fails()) {
@@ -249,13 +288,17 @@ class GameController extends Controller
 
         try {
             $user = JWTAuth::parseToken()->authenticate();
+            $riskLevel = $request->risk_level ?? $request->risk ?? 'low';
+            
             $result = $this->wheelGame->spin(
                 $user,
                 $request->bet_amount,
-                $request->risk ?? 'low'
+                $riskLevel
             );
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -294,6 +337,8 @@ class GameController extends Controller
             );
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -319,6 +364,8 @@ class GameController extends Controller
             );
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -344,7 +391,7 @@ class GameController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'bet_amount' => 'required|numeric|min:1',
-                'client_seed' => 'nullable|string',
+                'target_multiplier' => 'nullable|numeric|min:1.01|max:50',
             ]);
 
             if ($validator->fails()) {
@@ -357,10 +404,12 @@ class GameController extends Controller
             $bet = $this->pumpGame->placeBet(
                 $user,
                 $request->bet_amount,
-                $request->client_seed
+                $request->target_multiplier
             );
 
             return response()->json(['success' => true, 'data' => $bet]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
@@ -385,6 +434,8 @@ class GameController extends Controller
             $result = $this->pumpGame->cashOut($user, $request->round_id);
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }

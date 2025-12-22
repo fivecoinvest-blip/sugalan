@@ -97,6 +97,7 @@ class WheelGameService
 
             return [
                 'bet_id' => $bet->id,
+                'result_segment' => $segment,  // Add result_segment
                 'segment' => $segment,
                 'risk' => $risk,
                 'multiplier' => $multiplier,
@@ -104,6 +105,10 @@ class WheelGameService
                 'payout' => round($payout, 2),
                 'profit' => round($profit, 2),
                 'is_win' => $profit > 0,
+                'balance' => [  // Add balance
+                    'real' => $user->wallet->real_balance,
+                    'bonus' => $user->wallet->bonus_balance,
+                ],
                 'provably_fair' => [
                     'server_seed_hash' => $seed->server_seed_hash,
                     'client_seed' => $seed->client_seed,
@@ -122,10 +127,24 @@ class WheelGameService
             throw new \Exception('Invalid risk level');
         }
 
+        $multipliers = self::SEGMENTS[$risk]['multipliers'];
+        $totalSegments = count($multipliers);
+        
+        // Format segments with multiplier, color, and probability
+        $segments = [];
+        $colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+        foreach ($multipliers as $index => $multiplier) {
+            $segments[] = [
+                'multiplier' => $multiplier,
+                'color' => $colors[$index % count($colors)],
+                'probability' => round(1 / $totalSegments, 4),
+            ];
+        }
+
         return [
             'risk' => $risk,
-            'segments' => self::SEGMENTS[$risk]['count'],
-            'multipliers' => self::SEGMENTS[$risk]['multipliers'],
+            'segments' => $segments,
+            'segment_count' => $totalSegments,
         ];
     }
 }

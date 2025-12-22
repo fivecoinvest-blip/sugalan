@@ -212,7 +212,7 @@ class WalletService
             $wallet = $user->wallet()->lockForUpdate()->first();
 
             if (!$wallet->hasBalance($amount)) {
-                throw new \Exception('Insufficient balance for bet');
+                throw new \InvalidArgumentException('Insufficient balance for bet');
             }
 
             $realUsed = 0;
