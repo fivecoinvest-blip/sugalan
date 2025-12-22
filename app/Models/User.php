@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\EncryptionService;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -36,6 +38,10 @@ class User extends Authenticatable implements JWTSubject
     protected $hidden = [
         'password',
         'remember_token',
+        'phone_encrypted',
+        'email_encrypted',
+        'phone_hash',
+        'email_hash',
     ];
 
     protected function casts(): array
@@ -63,6 +69,76 @@ class User extends Authenticatable implements JWTSubject
                 $user->referral_code = strtoupper(Str::random(8));
             }
         });
+        
+        // Encrypt sensitive data on save
+        static::saving(function ($user) {
+            $encryption = app(EncryptionService::class);
+            
+            // Encrypt phone if changed
+            if ($user->isDirty('phone_number') && $user->phone_number) {
+                $user->phone_encrypted = $encryption->encryptPhone($user->phone_number);
+                $user->phone_hash = $encryption->hash($user->phone_number);
+            }
+            
+            // Encrypt email if changed
+            if ($user->isDirty('email') && $user->email) {
+                $user->email_encrypted = $encryption->encryptEmail($user->email);
+                $user->email_hash = $encryption->hash($user->email);
+            }
+        });
+    }
+
+    // Encrypted Accessors/Mutators
+    protected function phoneNumber(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                // If encrypted version exists, use it
+                if ($this->phone_encrypted) {
+                    return app(EncryptionService::class)->decryptPhone($this->phone_encrypted);
+                }
+                return $value;
+            },
+            set: fn ($value) => $value,
+        );
+    }
+
+    protected function email(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                // If encrypted version exists, use it
+                if ($this->email_encrypted) {
+                    return app(EncryptionService::class)->decryptEmail($this->email_encrypted);
+                }
+                return $value;
+            },
+            set: fn ($value) => $value,
+        );
+    }
+
+    // Masked data for display
+    public function getMaskedPhoneAttribute(): ?string
+    {
+        return app(EncryptionService::class)->maskPhone($this->phone_number);
+    }
+
+    public function getMaskedEmailAttribute(): ?string
+    {
+        return app(EncryptionService::class)->maskEmail($this->email);
+    }
+
+    // Search by encrypted data
+    public static function findByPhone(string $phone): ?self
+    {
+        $hash = app(EncryptionService::class)->hash($phone);
+        return static::where('phone_hash', $hash)->first();
+    }
+
+    public static function findByEmail(string $email): ?self
+    {
+        $hash = app(EncryptionService::class)->hash($email);
+        return static::where('email_hash', $hash)->first();
     }
 
     // JWT Methods

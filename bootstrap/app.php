@@ -15,9 +15,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // Global middleware
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         
+        // Web middleware group (includes CSRF protection)
+        $middleware->web(append: [
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+            \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        ]);
+        
         // API middleware group
         $middleware->api(prepend: [
             \App\Http\Middleware\LogApiRequests::class,
+            \App\Http\Middleware\ThrottleWithLogging::class,
         ]);
         
         // Middleware aliases
