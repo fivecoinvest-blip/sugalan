@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\PromotionController as AdminPromotionController;
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Api\VerificationController;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\ResponsibleGamingController;
@@ -221,6 +222,13 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
             // Daily Rewards Statistics
             Route::get('/daily-rewards/statistics', [AdminPromotionController::class, 'getDailyRewardStatistics']);
         });
+    });
+    
+    // Analytics routes (requires view_analytics permission)
+    Route::prefix('analytics')->group(function () {
+        Route::get('/dashboard', [AnalyticsController::class, 'dashboard']);
+        Route::get('/realtime', [AnalyticsController::class, 'realtime']);
+        Route::get('/export', [AnalyticsController::class, 'export']);
     });
 });
 
