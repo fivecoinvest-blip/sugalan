@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use Tests\TestCase;
 use App\Services\ProvablyFairService;
 use App\Models\Seed;
+use App\Models\User;
+use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class ProvablyFairServiceTest extends TestCase
@@ -12,11 +14,16 @@ class ProvablyFairServiceTest extends TestCase
     use RefreshDatabase;
 
     protected ProvablyFairService $service;
+    protected User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->service = new ProvablyFairService();
+        
+        // Create test user for seed-related tests
+        $this->user = User::factory()->create();
+        Wallet::factory()->create(['user_id' => $this->user->id]);
     }
 
     /** @test */
@@ -60,14 +67,14 @@ class ProvablyFairServiceTest extends TestCase
     public function it_converts_hash_to_mines_positions()
     {
         $hash = $this->service->generateResult('server', 'client', 0);
-        $positions = $this->service->hashToMinesPositions($hash, 25, 3);
+        $positions = $this->service->hashToMinesPositions($hash, 5, 3); // 5x5 grid = 25 cells
 
         $this->assertCount(3, $positions);
         $this->assertCount(3, array_unique($positions)); // No duplicates
         
         foreach ($positions as $position) {
             $this->assertGreaterThanOrEqual(0, $position);
-            $this->assertLessThan(25, $position);
+            $this->assertLessThan(25, $position); // 5x5 = 25 cells
         }
     }
 
@@ -205,11 +212,10 @@ class ProvablyFairServiceTest extends TestCase
     /** @test */
     public function it_creates_new_seed_for_user()
     {
-        $userId = 1;
-        $seed = $this->service->createNewSeed($userId);
+        $seed = $this->service->createNewSeed($this->user->id);
 
         $this->assertInstanceOf(Seed::class, $seed);
-        $this->assertEquals($userId, $seed->user_id);
+        $this->assertEquals($this->user->id, $seed->user_id);
         $this->assertEquals(64, strlen($seed->server_seed));
         $this->assertNotEmpty($seed->client_seed);
         $this->assertEquals(0, $seed->nonce);
@@ -219,14 +225,12 @@ class ProvablyFairServiceTest extends TestCase
     /** @test */
     public function it_gets_or_creates_active_seed()
     {
-        $userId = 1;
-        
         // First call should create new seed
-        $seed1 = $this->service->getActiveSeed($userId);
+        $seed1 = $this->service->getActiveSeed($this->user->id);
         $this->assertInstanceOf(Seed::class, $seed1);
         
         // Second call should return same seed
-        $seed2 = $this->service->getActiveSeed($userId);
+        $seed2 = $this->service->getActiveSeed($this->user->id);
         $this->assertEquals($seed1->id, $seed2->id);
     }
 

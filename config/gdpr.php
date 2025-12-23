@@ -64,6 +64,12 @@ return [
         'archive_deleted_data' => true,
         'archive_retention_days' => 30,
     ],
+    
+    // Whether to anonymize user data instead of deleting it
+    'anonymize_instead_of_delete' => env('GDPR_ANONYMIZE_INSTEAD_OF_DELETE', false),
+    
+    // Whether to preserve financial records when deleting user data
+    'preserve_financial_records' => env('GDPR_PRESERVE_FINANCIAL_RECORDS', true),
 
     /*
     |--------------------------------------------------------------------------

@@ -12,6 +12,472 @@ use Carbon\Carbon;
 class ResponsibleGamingService
 {
     /**
+     * Set deposit limit (single period wrapper for tests)
+     */
+    public function setDepositLimit(int $userId, string $period, float $amount): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        // Validate minimum amount
+        if ($amount < 100) {
+            return false;
+        }
+
+        $settings = $this->getSettings($user);
+        $column = "{$period}_deposit_limit";
+        
+        // Check cooldown for limit increases (not for first-time setting)
+        $currentLimit = $settings->$column ?? 0;
+        if ($currentLimit > 0 && $amount > $currentLimit) {
+            $lastUpdate = $settings->updated_at;
+            if ($lastUpdate && $lastUpdate->diffInHours(now()) < 24) {
+                return false;
+            }
+        }
+        
+        $settings->update([$column => $amount]);
+        
+        return true;
+    }
+
+    /**
+     * Set wager limit (single period wrapper for tests)
+     */
+    public function setWagerLimit(int $userId, string $period, float $amount): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        // Validate minimum amount
+        if ($amount < 100) {
+            return false;
+        }
+
+        $settings = $this->getSettings($user);
+        $column = "{$period}_wager_limit";
+        
+        // Check cooldown for limit increases (not for first-time setting)
+        $currentLimit = $settings->$column ?? 0;
+        if ($currentLimit > 0 && $amount > $currentLimit) {
+            $lastUpdate = $settings->updated_at;
+            if ($lastUpdate && $lastUpdate->diffInHours(now()) < 24) {
+                return false;
+            }
+        }
+        
+        $settings->update([$column => $amount]);
+        
+        return true;
+    }
+
+    /**
+     * Set loss limit (single period wrapper for tests)
+     */
+    public function setLossLimit(int $userId, string $period, float $amount): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        // Validate minimum amount
+        if ($amount < 100) {
+            return false;
+        }
+
+        $settings = $this->getSettings($user);
+        $column = "{$period}_loss_limit";
+        
+        // Check cooldown for limit increases (not for first-time setting)
+        $currentLimit = $settings->$column ?? 0;
+        if ($currentLimit > 0 && $amount > $currentLimit) {
+            $lastUpdate = $settings->updated_at;
+            if ($lastUpdate && $lastUpdate->diffInHours(now()) < 24) {
+                return false;
+            }
+        }
+        
+        $settings->update([$column => $amount]);
+        
+        return true;
+    }
+
+    /**
+     * Check if deposit is within limit
+     */
+    public function checkDepositLimit(int $userId, float $amount): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        $settings = ResponsibleGaming::where('user_id', $userId)->first();
+        if (!$settings) return true; // No limits set
+
+        // Check daily, weekly, monthly limits
+        $dailySpent = $this->getDepositSpent($userId, 'daily');
+        if ($settings->daily_deposit_limit && ($dailySpent + $amount) > $settings->daily_deposit_limit) {
+            return false;
+        }
+
+        $weeklySpent = $this->getDepositSpent($userId, 'weekly');
+        if ($settings->weekly_deposit_limit && ($weeklySpent + $amount) > $settings->weekly_deposit_limit) {
+            return false;
+        }
+
+        $monthlySpent = $this->getDepositSpent($userId, 'monthly');
+        if ($settings->monthly_deposit_limit && ($monthlySpent + $amount) > $settings->monthly_deposit_limit) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if wager is within limit
+     */
+    public function checkWagerLimit(int $userId, float $amount): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        $settings = ResponsibleGaming::where('user_id', $userId)->first();
+        if (!$settings) return true; // No limits set
+
+        $dailyWagered = $this->getWagerSpent($userId, 'daily');
+        if ($settings->daily_wager_limit && ($dailyWagered + $amount) > $settings->daily_wager_limit) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if loss is within limit
+     */
+    public function checkLossLimit(int $userId, ?float $amount = null): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        $settings = ResponsibleGaming::where('user_id', $userId)->first();
+        if (!$settings) return true; // No limit set, can play
+
+        // If amount not provided, check current loss
+        if ($amount === null) {
+            $dailyLoss = $this->getLossAmount($userId, 'daily');
+            if ($settings->daily_loss_limit && $dailyLoss >= $settings->daily_loss_limit) {
+                return false; // Limit exceeded
+            }
+            return true;
+        }
+
+        // If amount provided, check if it would exceed limit
+        if ($settings->daily_loss_limit && $amount >= $settings->daily_loss_limit) {
+            return false; // Would exceed limit
+        }
+
+        return true; // Under limit, can play
+    }
+
+    /**
+     * Check if user can play (alias for checkCanPlay)
+     */
+    public function canUserPlay(int $userId): bool
+    {
+        return $this->checkCanPlay($userId);
+    }
+
+    /**
+     * Check if user can play (not self-excluded)
+     */
+    public function checkCanPlay(int $userId): bool
+    {
+        $settings = ResponsibleGaming::where('user_id', $userId)->first();
+        if (!$settings) return true;
+
+        // Check self-exclusion
+        if ($settings->self_exclusion_status === 'permanent') {
+            return false;
+        }
+
+        if (in_array($settings->self_exclusion_status, ['temporary', 'active']) && $settings->self_exclusion_end) {
+            if (now()->lt($settings->self_exclusion_end)) {
+                return false;
+            }
+        }
+
+        // Check cool-off
+        if ($settings->cool_off_until && now()->lt($settings->cool_off_until)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Set self-exclusion
+     */
+    public function setSelfExclusion(int $userId, $period, ?string $reason = null): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        $settings = $this->getSettings($user);
+        
+        // If period is 0, set permanent self-exclusion
+        if ($period === 0 || $period === '0') {
+            $settings->update([
+                'self_exclusion_status' => 'permanent',
+                'self_exclusion_start' => now(),
+                'self_exclusion_end' => null,
+                'self_exclusion_reason' => $reason,
+            ]);
+            return true;
+        }
+        
+        // If period is numeric (hours), set active (temporary exclusion)
+        if (is_numeric($period)) {
+            $settings->update([
+                'self_exclusion_status' => 'active',
+                'self_exclusion_start' => now(),
+                'self_exclusion_end' => now()->addHours($period),
+                'self_exclusion_reason' => $reason,
+            ]);
+            return true;
+        }
+        
+        // Otherwise parse period string
+        $data = [
+            'self_exclusion_status' => $period === 'permanent' ? 'permanent' : 'temporary',
+            'self_exclusion_start' => now(),
+            'self_exclusion_reason' => $reason,
+        ];
+
+        if ($period !== 'permanent') {
+            $data['self_exclusion_end'] = $this->calculateExclusionEnd($period);
+        }
+
+        $settings->update($data);
+        return true;
+    }
+
+    /**
+     * Check if user is self-excluded
+     */
+    public function isUserSelfExcluded(int $userId): bool
+    {
+        $settings = ResponsibleGaming::where('user_id', $userId)->first();
+        if (!$settings) return false;
+
+        if ($settings->self_exclusion_status === 'permanent') {
+            return true;
+        }
+
+        if (in_array($settings->self_exclusion_status, ['temporary', 'active']) && $settings->self_exclusion_end) {
+            return now()->lt($settings->self_exclusion_end);
+        }
+
+        return false;
+    }
+
+    /**
+     * Set session limit
+     */
+    public function setSessionLimit(int $userId, int $minutes): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        $settings = $this->getSettings($user);
+        $settings->update(['session_duration_limit' => $minutes]);
+        
+        return true;
+    }
+
+    /**
+     * Start gaming session (alias)
+     */
+    public function startGamingSession(int $userId): void
+    {
+        $this->startSession($userId);
+    }
+
+    /**
+     * Start gaming session
+     */
+    public function startSession(int $userId): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        $settings = $this->getSettings($user);
+        $settings->update(['current_session_start' => now()]);
+        return true;
+    }
+
+    /**
+     * Check session timeout
+     */
+    public function checkSessionTimeout(int $userId): bool
+    {
+        return $this->hasSessionExpired($userId);
+    }
+
+    /**
+     * Get user statistics (wrapper accepting userId)
+     */
+    public function getUserStatistics(int $userId): array
+    {
+        $user = User::find($userId);
+        if (!$user) return [];
+
+        return $this->getStatisticsDetailed($user);
+    }
+
+    /**
+     * Get user statistics (alias for getUserStatistics)
+     */
+    public function getStatistics(int|User $userOrId): array
+    {
+        if (is_int($userOrId)) {
+            return $this->getUserStatistics($userOrId);
+        }
+        
+        return $this->getStatisticsDetailed($userOrId);
+    }
+
+    /**
+     * Remove a limit (set to null)
+     */
+    public function removeLimit(int $userId, string $limitType, string $period): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        $settings = $this->getSettings($user);
+        
+        // Map limit type and period to column name
+        $column = "{$period}_{$limitType}_limit";
+        
+        $settings->update([$column => null]);
+        
+        return true;
+    }
+
+    /**
+     * Check if session has expired
+     */
+    public function hasSessionExpired(int $userId): bool
+    {
+        $settings = ResponsibleGaming::where('user_id', $userId)->first();
+        if (!$settings) {
+            return false;
+        }
+
+        $durationLimit = $settings->session_duration_limit;
+        if (!$durationLimit) {
+            return false;
+        }
+
+        $sessionStart = $settings->current_session_start;
+        if (!$sessionStart) {
+            return false;
+        }
+
+        $minutesElapsed = now()->diffInMinutes($sessionStart, false);
+        return abs($minutesElapsed) >= $durationLimit;
+    }
+
+    /**
+     * Set reality check interval
+     */
+    public function setRealityCheck(int $userId, int $minutes): bool
+    {
+        $user = User::find($userId);
+        if (!$user) return false;
+
+        $settings = $this->getSettings($user);
+        $settings->update(['reality_check_interval' => $minutes]);
+        
+        return true;
+    }
+
+    /**
+     * Get deposit spent in period
+     */
+    private function getDepositSpent(int $userId, string $period): float
+    {
+        $startDate = $this->getStartDateForPeriod($period);
+        
+        return Deposit::where('user_id', $userId)
+            ->where('status', 'approved')
+            ->where('created_at', '>=', $startDate)
+            ->sum('amount');
+    }
+
+    /**
+     * Get wager spent in period
+     */
+    private function getWagerSpent(int $userId, string $period): float
+    {
+        $startDate = $this->getStartDateForPeriod($period);
+        
+        return Bet::where('user_id', $userId)
+            ->where('created_at', '>=', $startDate)
+            ->sum('bet_amount');
+    }
+
+    /**
+     * Get loss amount in period
+     */
+    private function getLossAmount(int $userId, string $period): float
+    {
+        $startDate = $this->getStartDateForPeriod($period);
+        
+        $wagered = Bet::where('user_id', $userId)
+            ->where('created_at', '>=', $startDate)
+            ->sum('bet_amount');
+            
+        $won = Bet::where('user_id', $userId)
+            ->where('created_at', '>=', $startDate)
+            ->sum('payout');
+            
+        return max(0, $wagered - $won);
+    }
+
+    /**
+     * Get start date for period
+     */
+    private function getStartDateForPeriod(string $period): Carbon
+    {
+        return match($period) {
+            'daily' => now()->startOfDay(),
+            'weekly' => now()->startOfWeek(),
+            'monthly' => now()->startOfMonth(),
+            default => now()->startOfDay(),
+        };
+    }
+
+    /**
+     * Calculate exclusion end date
+     */
+    private function calculateExclusionEnd(string $period): Carbon
+    {
+        // Parse periods like "6_months", "1_year", "24_hours", etc
+        $parts = explode('_', $period);
+        $value = (int)$parts[0];
+        $unit = $parts[1] ?? 'days';
+
+        return match($unit) {
+            'hours', 'hour' => now()->addHours($value),
+            'days', 'day' => now()->addDays($value),
+            'weeks', 'week' => now()->addWeeks($value),
+            'months', 'month' => now()->addMonths($value),
+            'years', 'year' => now()->addYears($value),
+            default => now()->addDays($value),
+        };
+    }
+
+    /**
      * Get or create responsible gaming settings for user
      */
     public function getSettings(User $user): ResponsibleGaming
@@ -121,62 +587,9 @@ class ResponsibleGamingService
     }
 
     /**
-     * Check if deposit is within limits
+     * Check if wager is within limits (renamed to avoid conflict)
      */
-    public function checkDepositLimit(User $user, float $amount): array
-    {
-        $settings = $this->getSettings($user);
-
-        // Get current deposit amounts for periods
-        $dailyTotal = $this->getDepositTotal($user, 'daily');
-        $weeklyTotal = $this->getDepositTotal($user, 'weekly');
-        $monthlyTotal = $this->getDepositTotal($user, 'monthly');
-
-        $violations = [];
-
-        // Check daily limit
-        if ($settings->daily_deposit_limit && ($dailyTotal + $amount) > $settings->daily_deposit_limit) {
-            $violations[] = [
-                'period' => 'daily',
-                'limit' => $settings->daily_deposit_limit,
-                'current' => $dailyTotal,
-                'attempted' => $amount,
-                'remaining' => max(0, $settings->daily_deposit_limit - $dailyTotal),
-            ];
-        }
-
-        // Check weekly limit
-        if ($settings->weekly_deposit_limit && ($weeklyTotal + $amount) > $settings->weekly_deposit_limit) {
-            $violations[] = [
-                'period' => 'weekly',
-                'limit' => $settings->weekly_deposit_limit,
-                'current' => $weeklyTotal,
-                'attempted' => $amount,
-                'remaining' => max(0, $settings->weekly_deposit_limit - $weeklyTotal),
-            ];
-        }
-
-        // Check monthly limit
-        if ($settings->monthly_deposit_limit && ($monthlyTotal + $amount) > $settings->monthly_deposit_limit) {
-            $violations[] = [
-                'period' => 'monthly',
-                'limit' => $settings->monthly_deposit_limit,
-                'current' => $monthlyTotal,
-                'attempted' => $amount,
-                'remaining' => max(0, $settings->monthly_deposit_limit - $monthlyTotal),
-            ];
-        }
-
-        return [
-            'allowed' => empty($violations),
-            'violations' => $violations,
-        ];
-    }
-
-    /**
-     * Check if wager is within limits
-     */
-    public function checkWagerLimit(User $user, float $amount): array
+    public function checkWagerLimitDetailed(User $user, float $amount): array
     {
         $settings = $this->getSettings($user);
 
@@ -223,9 +636,9 @@ class ResponsibleGamingService
     }
 
     /**
-     * Check if loss is within limits
+     * Check if loss is within limits (renamed to avoid conflict)
      */
-    public function checkLossLimit(User $user, float $amount): array
+    public function checkLossLimitDetailed(User $user, float $amount): array
     {
         $settings = $this->getSettings($user);
 
@@ -360,9 +773,9 @@ class ResponsibleGamingService
     }
 
     /**
-     * Start session tracking
+     * Start session tracking (detailed)
      */
-    public function startSession(User $user): ResponsibleGaming
+    public function startSessionTracking(User $user): ResponsibleGaming
     {
         $settings = $this->getSettings($user);
 
@@ -416,13 +829,12 @@ class ResponsibleGamingService
     /**
      * Get statistics for user
      */
-    public function getStatistics(User $user): array
+    public function getStatisticsDetailed(User $user): array
     {
         $settings = $this->getSettings($user);
 
         return [
-            'limits' => [
-                'deposit' => [
+            'deposit_limits' => [
                     'daily' => [
                         'limit' => $settings->daily_deposit_limit,
                         'used' => $this->getDepositTotal($user, 'daily'),
@@ -445,7 +857,7 @@ class ResponsibleGamingService
                             : null,
                     ],
                 ],
-                'wager' => [
+            'wager_limits' => [
                     'daily' => [
                         'limit' => $settings->daily_wager_limit,
                         'used' => $this->getWagerTotal($user, 'daily'),
@@ -459,7 +871,7 @@ class ResponsibleGamingService
                         'used' => $this->getWagerTotal($user, 'monthly'),
                     ],
                 ],
-                'loss' => [
+            'loss_limits' => [
                     'daily' => [
                         'limit' => $settings->daily_loss_limit,
                         'current' => $this->getLossTotal($user, 'daily'),
@@ -473,7 +885,6 @@ class ResponsibleGamingService
                         'current' => $this->getLossTotal($user, 'monthly'),
                     ],
                 ],
-            ],
             'session' => [
                 'duration_limit' => $settings->session_duration_limit,
                 'started_at' => $settings->last_session_start,

@@ -10,8 +10,10 @@ use App\Services\WalletService;
 use App\Services\NotificationService;
 use App\Services\BonusService;
 use App\Services\ReferralService;
+use App\Services\FinancialMonitoringService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class DepositService
 {
@@ -19,7 +21,8 @@ class DepositService
         private WalletService $walletService,
         private NotificationService $notificationService,
         private BonusService $bonusService,
-        private ReferralService $referralService
+        private ReferralService $referralService,
+        private FinancialMonitoringService $monitoringService
     ) {}
 
     /**
@@ -68,8 +71,19 @@ class DepositService
             ->where('is_active', true)
             ->firstOrFail();
 
-        if ($gcashAccount->hasReachedDailyLimit()) {
-            throw new \Exception('This GCash account has reached its daily limit');
+        // Check if daily limit would be exceeded
+        $remainingLimit = $gcashAccount->getRemainingDailyLimit();
+        if ($remainingLimit < $amount) {
+            throw new \Exception('This deposit would exceed the daily limit for this GCash account');
+        }
+
+        // Check for duplicate reference number
+        $existingDeposit = Deposit::where('reference_number', $referenceNumber)
+            ->where('status', '!=', 'cancelled')
+            ->first();
+        
+        if ($existingDeposit) {
+            throw new \Exception('This reference number has already been used');
         }
 
         return DB::transaction(function () use ($user, $gcashAccountId, $amount, $referenceNumber, $screenshotFile, $notes) {
@@ -87,11 +101,23 @@ class DepositService
                 'reference_number' => $referenceNumber,
                 'screenshot_url' => $screenshotPath,
                 'status' => 'pending',
-                'notes' => $notes,
             ]);
 
             // Log action
             $this->logAction('deposit_request_created', $user, $deposit);
+            
+            // Log to financial monitoring
+            $this->monitoringService->logFinancialTransaction(
+                'deposit_request',
+                $user,
+                $amount,
+                [
+                    'reference_number' => $referenceNumber,
+                    'gcash_account_id' => $gcashAccountId,
+                    'has_screenshot' => !is_null($screenshotPath),
+                ],
+                $deposit->id
+            );
 
             return $deposit;
         });
@@ -162,6 +188,21 @@ class DepositService
 
             // Log action
             $this->logAction('deposit_approved', $user, $deposit, $adminUserId);
+            
+            // Log to financial monitoring
+            $this->monitoringService->logDepositApproval($deposit, $adminUserId, $adminNotes);
+            $this->monitoringService->logFinancialTransaction(
+                'deposit_approved',
+                $user,
+                $deposit->amount,
+                [
+                    'reference_number' => $deposit->reference_number,
+                    'admin_user_id' => $adminUserId,
+                    'admin_notes' => $adminNotes,
+                    'is_first_deposit' => $isFirstDeposit,
+                ],
+                $deposit->id
+            );
         });
 
         return $deposit->fresh();
@@ -261,6 +302,8 @@ class DepositService
         AuditLog::create([
             'user_id' => $user->id,
             'admin_user_id' => $adminUserId,
+            'actor_type' => $adminUserId ? 'admin' : 'user',
+            'actor_id' => $adminUserId ?? $user->id,
             'action' => $action,
             'auditable_type' => Deposit::class,
             'auditable_id' => $deposit->id,

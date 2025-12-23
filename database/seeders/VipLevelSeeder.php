@@ -31,8 +31,8 @@ class VipLevelSeeder extends Seeder
             [
                 'name' => 'Silver',
                 'level' => 2,
-                'min_wagered_amount' => 1000,
-                'min_deposit_amount' => 500,
+                'min_wagered_amount' => 10000,
+                'min_deposit_amount' => 5000,
                 'bonus_multiplier' => 1.10,
                 'wagering_reduction' => 5,
                 'cashback_percentage' => 1,
@@ -46,8 +46,8 @@ class VipLevelSeeder extends Seeder
             [
                 'name' => 'Gold',
                 'level' => 3,
-                'min_wagered_amount' => 5000,
-                'min_deposit_amount' => 2000,
+                'min_wagered_amount' => 50000,
+                'min_deposit_amount' => 20000,
                 'bonus_multiplier' => 1.25,
                 'wagering_reduction' => 10,
                 'cashback_percentage' => 2,
@@ -61,8 +61,8 @@ class VipLevelSeeder extends Seeder
             [
                 'name' => 'Platinum',
                 'level' => 4,
-                'min_wagered_amount' => 20000,
-                'min_deposit_amount' => 10000,
+                'min_wagered_amount' => 200000,
+                'min_deposit_amount' => 100000,
                 'bonus_multiplier' => 1.50,
                 'wagering_reduction' => 15,
                 'cashback_percentage' => 3,
@@ -76,8 +76,8 @@ class VipLevelSeeder extends Seeder
             [
                 'name' => 'Diamond',
                 'level' => 5,
-                'min_wagered_amount' => 100000,
-                'min_deposit_amount' => 50000,
+                'min_wagered_amount' => 1000000,
+                'min_deposit_amount' => 500000,
                 'bonus_multiplier' => 2.00,
                 'wagering_reduction' => 20,
                 'cashback_percentage' => 5,

@@ -13,33 +13,24 @@ class AdminAuthenticate
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Check if user is authenticated as admin
-        if (!$request->user() || !($request->user() instanceof \App\Models\AdminUser)) {
+        $user = $request->user();
+        
+        // Check if user is authenticated
+        if (!$user) {
             return response()->json([
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Unauthorized. Authentication required.'
             ], 401);
         }
 
-        // Check if admin is active
-        if (!$request->user()->is_active) {
+        // AdminUser model from admins table OR User model with admin role
+        $isAdmin = ($user instanceof \App\Models\AdminUser) || 
+                   (isset($user->role) && $user->role === 'admin');
+        
+        if (!$isAdmin) {
             return response()->json([
-                'message' => 'Admin account is inactive.'
+                'message' => 'Unauthorized. Admin access required.'
             ], 403);
         }
-
-        // IP whitelist check (if configured)
-        $ipWhitelist = $request->user()->ip_whitelist;
-        if (!empty($ipWhitelist) && !in_array($request->ip(), $ipWhitelist)) {
-            return response()->json([
-                'message' => 'Access denied from this IP address.'
-            ], 403);
-        }
-
-        // Update last activity
-        $request->user()->update([
-            'last_login_at' => now(),
-            'last_login_ip' => $request->ip(),
-        ]);
 
         return $next($request);
     }

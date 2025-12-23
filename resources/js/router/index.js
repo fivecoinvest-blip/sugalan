@@ -168,8 +168,13 @@ const router = createRouter({
 });
 
 // Navigation guard
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
+  
+  // If token exists but user data not loaded yet, wait for checkAuth
+  if (authStore.token && !authStore.user) {
+    await authStore.checkAuth();
+  }
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Show login modal instead of redirecting

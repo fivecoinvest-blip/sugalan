@@ -7,6 +7,8 @@ use App\Models\Wallet;
 use App\Models\Deposit;
 use App\Models\GcashAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DepositWorkflowTest extends TestCase
@@ -20,13 +22,15 @@ class DepositWorkflowTest extends TestCase
     {
         parent::setUp();
         
+        $this->seed(\Database\Seeders\PaymentMethodSeeder::class);
+        
         $this->user = User::factory()->create();
         Wallet::factory()->create(['user_id' => $this->user->id]);
         
         $this->gcashAccount = GcashAccount::factory()->create([
             'is_active' => true,
             'daily_limit' => 100000,
-            'current_daily_amount' => 0,
+            'daily_received' => 0,
         ]);
         
         $this->actingAs($this->user, 'api');
@@ -35,10 +39,13 @@ class DepositWorkflowTest extends TestCase
     /** @test */
     public function user_can_request_deposit()
     {
+        Storage::fake('public');
+        
         $response = $this->postJson('/api/deposits', [
             'amount' => 1000,
             'gcash_account_id' => $this->gcashAccount->id,
             'reference_number' => 'REF' . time(),
+            'screenshot' => UploadedFile::fake()->create('receipt.jpg', 100),
         ]);
 
         $response->assertStatus(201);
@@ -61,10 +68,13 @@ class DepositWorkflowTest extends TestCase
     /** @test */
     public function deposit_request_validates_minimum_amount()
     {
+        Storage::fake('public');
+        
         $response = $this->postJson('/api/deposits', [
             'amount' => 50, // Below minimum
             'gcash_account_id' => $this->gcashAccount->id,
             'reference_number' => 'REF' . time(),
+            'screenshot' => UploadedFile::fake()->create('receipt.jpg', 100),
         ]);
 
         $response->assertStatus(422);
@@ -74,10 +84,13 @@ class DepositWorkflowTest extends TestCase
     /** @test */
     public function deposit_request_validates_maximum_amount()
     {
+        Storage::fake('public');
+        
         $response = $this->postJson('/api/deposits', [
             'amount' => 1000000, // Above maximum
             'gcash_account_id' => $this->gcashAccount->id,
             'reference_number' => 'REF' . time(),
+            'screenshot' => UploadedFile::fake()->create('receipt.jpg', 100),
         ]);
 
         $response->assertStatus(422);
@@ -188,29 +201,35 @@ class DepositWorkflowTest extends TestCase
     /** @test */
     public function deposit_creates_audit_log()
     {
+        Storage::fake('public');
+        
         $this->postJson('/api/deposits', [
             'amount' => 1000,
             'gcash_account_id' => $this->gcashAccount->id,
             'reference_number' => 'REF' . time(),
+            'screenshot' => UploadedFile::fake()->create('receipt.jpg', 100),
         ]);
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $this->user->id,
-            'action' => 'deposit_requested',
+            'action' => 'deposit_request_created',
         ]);
     }
 
     /** @test */
     public function deposit_respects_gcash_daily_limit()
     {
+        Storage::fake('public');
+        
         $this->gcashAccount->update([
-            'current_daily_amount' => 95000,
+            'daily_received' => 95000,
         ]);
 
         $response = $this->postJson('/api/deposits', [
             'amount' => 10000, // Would exceed daily limit
             'gcash_account_id' => $this->gcashAccount->id,
             'reference_number' => 'REF' . time(),
+            'screenshot' => UploadedFile::fake()->create('receipt.jpg', 100),
         ]);
 
         $response->assertStatus(400);
@@ -219,6 +238,8 @@ class DepositWorkflowTest extends TestCase
     /** @test */
     public function duplicate_reference_numbers_are_rejected()
     {
+        Storage::fake('public');
+        
         $refNumber = 'REF' . time();
         
         Deposit::factory()->create([
@@ -230,6 +251,7 @@ class DepositWorkflowTest extends TestCase
             'amount' => 1000,
             'gcash_account_id' => $this->gcashAccount->id,
             'reference_number' => $refNumber,
+            'screenshot' => UploadedFile::fake()->create('receipt.jpg', 100),
         ]);
 
         $response->assertStatus(422);

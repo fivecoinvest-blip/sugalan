@@ -21,8 +21,8 @@ class WithdrawalFactory extends Factory
             'user_id' => \App\Models\User::factory(),
             'amount' => $this->faker->randomFloat(2, 100, 50000),
             'gcash_number' => '0917' . $this->faker->numerify('#######'),
-            'status' => $this->faker->randomElement(['pending', 'processing', 'approved', 'rejected', 'cancelled']),
-            'admin_notes' => null,
+            'status' => $this->faker->randomElement(['pending', 'processing', 'completed', 'rejected', 'cancelled']),
+            'admin_notes' => $this->faker->optional()->sentence(),
         ];
     }
 }

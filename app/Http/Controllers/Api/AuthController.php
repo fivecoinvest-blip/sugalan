@@ -20,9 +20,12 @@ class AuthController extends Controller
      */
     public function registerPhone(Request $request): JsonResponse
     {
+        // Accept both 'phone' and 'phone_number' field names
+        $phoneField = $request->has('phone_number') ? 'phone_number' : 'phone';
+        
         $validator = Validator::make($request->all(), [
-            'phone_number' => 'required|string|unique:users,phone_number',
-            'password' => 'required|string|min:6',
+            $phoneField => 'required|string|unique:users,phone_number',
+            'password' => 'required|string|min:6|confirmed',
             'username' => 'nullable|string|unique:users,username',
             'referral_code' => 'nullable|string|exists:users,referral_code',
         ]);
@@ -35,8 +38,16 @@ class AuthController extends Controller
         }
 
         try {
+            // Normalize phone number (add +63 if starts with 0)
+            $phoneNumber = $request->input($phoneField);
+            if (preg_match('/^0\d{10}$/', $phoneNumber)) {
+                $phoneNumber = '+63' . substr($phoneNumber, 1);
+            } elseif (!str_starts_with($phoneNumber, '+')) {
+                $phoneNumber = '+63' . $phoneNumber;
+            }
+            
             $data = [
-                'phone_number' => $request->phone_number,
+                'phone_number' => $phoneNumber,
                 'password' => $request->password,
                 'username' => $request->username,
             ];
@@ -68,8 +79,11 @@ class AuthController extends Controller
      */
     public function loginPhone(Request $request): JsonResponse
     {
+        // Accept both 'phone' and 'phone_number' field names
+        $phoneField = $request->has('phone_number') ? 'phone_number' : 'phone';
+        
         $validator = Validator::make($request->all(), [
-            'phone_number' => 'required|string',
+            $phoneField => 'required|string',
             'password' => 'required|string',
         ]);
 
@@ -81,8 +95,16 @@ class AuthController extends Controller
         }
 
         try {
+            // Normalize phone number
+            $phoneNumber = $request->input($phoneField);
+            if (preg_match('/^0\d{10}$/', $phoneNumber)) {
+                $phoneNumber = '+63' . substr($phoneNumber, 1);
+            } elseif (!str_starts_with($phoneNumber, '+')) {
+                $phoneNumber = '+63' . $phoneNumber;
+            }
+            
             $result = $this->authService->loginWithPhone(
-                $request->phone_number,
+                $phoneNumber,
                 $request->password
             );
 

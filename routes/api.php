@@ -31,7 +31,9 @@ use App\Http\Controllers\CookieConsentController;
 // Public routes
 Route::prefix('auth')->group(function () {
     Route::post('/register/phone', [AuthController::class, 'registerPhone']);
+    Route::post('/register', [AuthController::class, 'registerPhone']); // Alias
     Route::post('/login/phone', [AuthController::class, 'loginPhone']);
+    Route::post('/login', [AuthController::class, 'loginPhone']); // Alias
     Route::post('/metamask', [AuthController::class, 'authenticateMetaMask']);
     Route::post('/telegram', [AuthController::class, 'authenticateTelegram']);
     Route::post('/guest', [AuthController::class, 'createGuest']);
@@ -65,7 +67,16 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/transactions', [WalletController::class, 'transactions']);
     });
 
-    // Payments
+    // Shorthand payment routes (for backward compatibility with tests)
+    Route::post('/deposits', [PaymentController::class, 'createDeposit']);
+    Route::get('/deposits', [PaymentController::class, 'getDepositHistory']);
+    Route::get('/deposits/{id}', [PaymentController::class, 'getDeposit']);
+    Route::delete('/deposits/{id}', [PaymentController::class, 'cancelDeposit']);
+    Route::post('/withdrawals', [PaymentController::class, 'createWithdrawal']);
+    Route::get('/withdrawals', [PaymentController::class, 'getWithdrawalHistory']);
+    Route::delete('/withdrawals/{id}', [PaymentController::class, 'cancelWithdrawal']);
+
+    // Payments (full namespace)
     Route::prefix('payments')->group(function () {
         // GCash accounts
         Route::get('/gcash-accounts', [PaymentController::class, 'getGcashAccounts']);
@@ -180,37 +191,41 @@ Route::prefix('admin/auth')->group(function () {
     Route::post('/refresh', [AdminAuthController::class, 'refresh']);
 });
 
-// Admin routes (JWT with admin middleware)
-Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
+// Admin routes (JWT with admin guard and middleware)
+Route::middleware(['auth:admin', 'admin'])->prefix('admin')->group(function () {
     // Admin auth
     Route::get('/auth/profile', [AdminAuthController::class, 'profile']);
     Route::post('/auth/logout', [AdminAuthController::class, 'logout']);
 
-    // Payment management (requires payment approval permission)
-    Route::middleware('admin.permission:manage_payments')->group(function () {
-        // Deposits
+    // Dashboard statistics
+    Route::get('/dashboard/stats', [\App\Http\Controllers\Api\Admin\DashboardController::class, 'getStats']);
+
+    // Deposit management (requires manage_deposits permission)
+    Route::middleware('admin.permission:manage_deposits')->group(function () {
         Route::prefix('payments/deposits')->group(function () {
             Route::get('/pending', [AdminPaymentController::class, 'getPendingDeposits']);
             Route::get('/{id}', [AdminPaymentController::class, 'getDepositDetails']);
             Route::post('/{id}/approve', [AdminPaymentController::class, 'approveDeposit']);
             Route::post('/{id}/reject', [AdminPaymentController::class, 'rejectDeposit']);
         });
+    });
 
-        // Withdrawals
+    // Withdrawal management (requires manage_withdrawals permission)
+    Route::middleware('admin.permission:manage_withdrawals')->group(function () {
         Route::prefix('payments/withdrawals')->group(function () {
             Route::get('/pending', [AdminPaymentController::class, 'getPendingWithdrawals']);
             Route::get('/{id}', [AdminPaymentController::class, 'getWithdrawalDetails']);
             Route::post('/{id}/approve', [AdminPaymentController::class, 'approveWithdrawal']);
             Route::post('/{id}/reject', [AdminPaymentController::class, 'rejectWithdrawal']);
         });
-
-        // Statistics
-        Route::get('/payments/statistics', [AdminPaymentController::class, 'getPaymentStatistics']);
-        Route::get('/payments/history', [AdminPaymentController::class, 'getPaymentHistory']);
     });
 
-    // Promotion management (requires manage_promotions permission)
-    Route::middleware('admin.permission:manage_promotions')->group(function () {
+    // Payment statistics (viewable by both deposit and withdrawal managers)
+    Route::get('/payments/statistics', [AdminPaymentController::class, 'getPaymentStatistics']);
+    Route::get('/payments/history', [AdminPaymentController::class, 'getPaymentHistory']);
+
+    // Promotion management (requires manage_bonuses permission)
+    Route::middleware('admin.permission:manage_bonuses')->group(function () {
         Route::prefix('promotions')->group(function () {
             // Campaigns
             Route::get('/campaigns', [AdminPromotionController::class, 'getCampaigns']);
@@ -224,11 +239,13 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin')->group(function () {
         });
     });
     
-    // Analytics routes (requires view_analytics permission)
-    Route::prefix('analytics')->group(function () {
-        Route::get('/dashboard', [AnalyticsController::class, 'dashboard']);
-        Route::get('/realtime', [AnalyticsController::class, 'realtime']);
-        Route::get('/export', [AnalyticsController::class, 'export']);
+    // Analytics routes (requires view_reports permission)
+    Route::middleware('admin.permission:view_reports')->group(function () {
+        Route::prefix('analytics')->group(function () {
+            Route::get('/dashboard', [AnalyticsController::class, 'dashboard']);
+            Route::get('/realtime', [AnalyticsController::class, 'realtime']);
+            Route::get('/export', [AnalyticsController::class, 'export']);
+        });
     });
 });
 

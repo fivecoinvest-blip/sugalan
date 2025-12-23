@@ -20,7 +20,8 @@ export const useAuthStore = defineStore('auth', () => {
         password,
       });
 
-      token.value = response.data.access_token;
+      // Backend returns { token, admin } (not access_token)
+      token.value = response.data.token;
       admin.value = response.data.admin;
 
       localStorage.setItem('admin_token', token.value);

@@ -8,13 +8,16 @@ use App\Models\Bonus;
 use App\Models\AuditLog;
 use App\Services\WalletService;
 use App\Services\NotificationService;
+use App\Services\FinancialMonitoringService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class WithdrawalService
 {
     public function __construct(
         private WalletService $walletService,
-        private NotificationService $notificationService
+        private NotificationService $notificationService,
+        private FinancialMonitoringService $monitoringService
     ) {}
 
     /**
@@ -27,8 +30,17 @@ class WithdrawalService
         string $gcashName
     ): Withdrawal {
         return DB::transaction(function () use ($user, $amount, $gcashNumber, $gcashName) {
-            // Validate user eligibility
+            // Validate user eligibility first
             $this->validateWithdrawalEligibility($user, $amount);
+            
+            // Then check VIP limits (which includes pending withdrawals check)
+            $this->checkVipLimits($user, $amount);
+            
+            // Finally check available balance
+            $wallet = $user->wallet;
+            if (!$wallet->hasRealBalance($amount)) {
+                throw new \Exception('Insufficient balance');
+            }
 
             // Lock the balance
             $this->walletService->lockBalance($user, $amount);
@@ -36,7 +48,6 @@ class WithdrawalService
             // Perform validation checks
             $wageringComplete = $this->checkWageringRequirements($user);
             $phoneVerified = !empty($user->phone_number) && !is_null($user->phone_verified_at);
-            $vipLimitPassed = $this->checkVipLimits($user, $amount);
 
             // Create withdrawal record
             $withdrawal = Withdrawal::create([
@@ -47,11 +58,25 @@ class WithdrawalService
                 'status' => 'pending',
                 'wagering_complete' => $wageringComplete,
                 'phone_verified' => $phoneVerified,
-                'vip_limit_passed' => $vipLimitPassed,
+                'vip_limit_passed' => true, // Already validated
             ]);
 
             // Log action
-            $this->logAction('withdrawal_request_created', $user, $withdrawal);
+            $this->logAction('withdrawal_requested', $user, $withdrawal);
+            
+            // Log to financial monitoring
+            $this->monitoringService->logFinancialTransaction(
+                'withdrawal_request',
+                $user,
+                $amount,
+                [
+                    'gcash_number' => $gcashNumber,
+                    'gcash_name' => $gcashName,
+                    'wagering_complete' => $wageringComplete,
+                    'phone_verified' => $phoneVerified,
+                ],
+                $withdrawal->id
+            );
 
             return $withdrawal;
         });
@@ -71,6 +96,11 @@ class WithdrawalService
         if ($user->auth_method === 'guest') {
             throw new \Exception('Guest accounts must upgrade before withdrawing');
         }
+        
+        // Check for active bonus
+        if ($user->wallet->bonus_balance > 0) {
+            throw new \Exception('Cannot withdraw with active bonus balance');
+        }
 
         // Check minimum withdrawal
         $paymentMethod = \App\Models\PaymentMethod::where('code', 'gcash')
@@ -79,12 +109,6 @@ class WithdrawalService
 
         if (!$paymentMethod->validateWithdrawalAmount($amount)) {
             throw new \Exception("Amount must be between {$paymentMethod->min_withdrawal} and {$paymentMethod->max_withdrawal}");
-        }
-
-        // Check available balance
-        $wallet = $user->wallet;
-        if (!$wallet->hasRealBalance($amount)) {
-            throw new \Exception('Insufficient real balance');
         }
     }
 
@@ -113,34 +137,43 @@ class WithdrawalService
     {
         $vipLevel = $user->vipLevel;
 
+        // Check for existing pending withdrawal
+        $pendingWithdrawal = Withdrawal::where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->exists();
+            
+        if ($pendingWithdrawal) {
+            throw new \Exception('You have a pending withdrawal request');
+        }
+
         // Check daily limit
         $todayWithdrawals = Withdrawal::where('user_id', $user->id)
-            ->where('status', 'approved')
-            ->whereDate('processed_at', today())
+            ->whereIn('status', ['approved', 'completed', 'pending', 'processing'])
+            ->whereDate('created_at', today())
             ->sum('amount');
 
         if (($todayWithdrawals + $amount) > $vipLevel->withdrawal_limit_daily) {
-            return false;
+            throw new \Exception('Daily withdrawal limit exceeded');
         }
 
         // Check weekly limit
         $weekWithdrawals = Withdrawal::where('user_id', $user->id)
-            ->where('status', 'approved')
-            ->whereBetween('processed_at', [now()->startOfWeek(), now()->endOfWeek()])
+            ->whereIn('status', ['approved', 'completed', 'pending', 'processing'])
+            ->whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
             ->sum('amount');
 
         if (($weekWithdrawals + $amount) > $vipLevel->withdrawal_limit_weekly) {
-            return false;
+            throw new \Exception('Weekly withdrawal limit exceeded');
         }
 
         // Check monthly limit
         $monthWithdrawals = Withdrawal::where('user_id', $user->id)
-            ->where('status', 'approved')
-            ->whereMonth('processed_at', now()->month)
+            ->whereIn('status', ['approved', 'completed', 'pending', 'processing'])
+            ->whereMonth('created_at', now()->month)
             ->sum('amount');
 
         if (($monthWithdrawals + $amount) > $vipLevel->withdrawal_limit_monthly) {
-            return false;
+            throw new \Exception('Monthly withdrawal limit exceeded');
         }
 
         return true;
@@ -215,6 +248,20 @@ class WithdrawalService
 
             // Log action
             $this->logAction('withdrawal_approved', $user, $withdrawal, $adminUserId);
+            
+            // Log to financial monitoring
+            $this->monitoringService->logWithdrawalApproval($withdrawal, $adminUserId, $adminNotes);
+            $this->monitoringService->logFinancialTransaction(
+                'withdrawal_approved',
+                $user,
+                $withdrawal->amount,
+                [
+                    'gcash_reference' => $gcashReference,
+                    'admin_user_id' => $adminUserId,
+                    'admin_notes' => $adminNotes,
+                ],
+                $withdrawal->id
+            );
         });
 
         return $withdrawal->fresh();
@@ -319,11 +366,12 @@ class WithdrawalService
     {
         AuditLog::create([
             'user_id' => $user->id,
-            'admin_user_id' => $adminUserId,
+            'admin_id' => $adminUserId,
+            'actor_type' => $adminUserId ? 'admin' : 'user',
             'action' => $action,
-            'auditable_type' => Withdrawal::class,
-            'auditable_id' => $withdrawal->id,
-            'new_values' => [
+            'resource_type' => 'withdrawal',
+            'resource_id' => $withdrawal->id,
+            'changes' => [
                 'amount' => $withdrawal->amount,
                 'status' => $withdrawal->status,
                 'gcash_number' => $withdrawal->gcash_number,

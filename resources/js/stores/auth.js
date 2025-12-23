@@ -26,8 +26,9 @@ export const useAuthStore = defineStore('auth', () => {
       const endpoint = method === 'phone' ? '/api/auth/login' : `/api/auth/login/${method}`;
       const response = await axios.post(endpoint, credentials);
       
-      token.value = response.data.token;
-      user.value = response.data.user;
+      // Backend returns { success: true, data: { access_token, user, ... } }
+      token.value = response.data.data.access_token;
+      user.value = response.data.data.user;
       
       localStorage.setItem('token', token.value);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token.value}`;
@@ -50,8 +51,9 @@ export const useAuthStore = defineStore('auth', () => {
       const endpoint = method === 'phone' ? '/api/auth/register' : `/api/auth/register/${method}`;
       const response = await axios.post(endpoint, data);
       
-      token.value = response.data.token;
-      user.value = response.data.user;
+      // Backend returns { success: true, data: { access_token, user, ... } }
+      token.value = response.data.data.access_token;
+      user.value = response.data.data.user;
       
       localStorage.setItem('token', token.value);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token.value}`;
@@ -73,8 +75,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await axios.post('/api/auth/guest');
       
-      token.value = response.data.token;
-      user.value = response.data.user;
+      // Backend returns { success: true, data: { access_token, user, ... } }
+      token.value = response.data.data.access_token;
+      user.value = response.data.data.user;
       
       localStorage.setItem('token', token.value);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token.value}`;
@@ -105,8 +108,8 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return;
 
     try {
-      const response = await axios.get('/api/user/profile');
-      user.value = response.data;
+      const response = await axios.get('/api/auth/me');
+      user.value = response.data.data;
     } catch (err) {
       // Token is invalid, clear auth
       token.value = null;

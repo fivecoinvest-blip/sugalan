@@ -19,7 +19,36 @@ class WithdrawalWorkflowTest extends TestCase
     {
         parent::setUp();
         
-        $this->user = User::factory()->create();
+        // Create payment method for withdrawals
+        \App\Models\PaymentMethod::create([
+            'name' => 'GCash',
+            'code' => 'gcash',
+            'type' => 'manual',
+            'description' => 'GCash mobile wallet',
+            'min_deposit' => 100.00,
+            'max_deposit' => 50000.00,
+            'min_withdrawal' => 200.00,
+            'max_withdrawal' => 50000.00,
+            'is_enabled' => true,
+            'supports_deposits' => true,
+            'supports_withdrawals' => true,
+            'display_order' => 1,
+        ]);
+        
+        // Create VIP level
+        $vipLevel = \App\Models\VipLevel::create([
+            'name' => 'Bronze',
+            'level' => 1,
+            'min_wagered_amount' => 0,
+            'withdrawal_limit_daily' => 50000,
+            'withdrawal_limit_weekly' => 200000,
+            'withdrawal_limit_monthly' => 500000,
+        ]);
+        
+        $this->user = User::factory()->create([
+            'status' => 'active',
+            'vip_level_id' => $vipLevel->id,
+        ]);
         $this->wallet = Wallet::factory()->create([
             'user_id' => $this->user->id,
             'real_balance' => 10000,
@@ -35,6 +64,7 @@ class WithdrawalWorkflowTest extends TestCase
         $response = $this->postJson('/api/withdrawals', [
             'amount' => 5000,
             'gcash_number' => '09171234567',
+            'gcash_name' => 'John Doe',
         ]);
 
         $response->assertStatus(201);
@@ -59,6 +89,7 @@ class WithdrawalWorkflowTest extends TestCase
         $this->postJson('/api/withdrawals', [
             'amount' => 5000,
             'gcash_number' => '09171234567',
+            'gcash_name' => 'John Doe',
         ]);
 
         $this->wallet->refresh();
@@ -73,6 +104,7 @@ class WithdrawalWorkflowTest extends TestCase
         $response = $this->postJson('/api/withdrawals', [
             'amount' => 15000, // More than available
             'gcash_number' => '09171234567',
+            'gcash_name' => 'John Doe',
         ]);
 
         $response->assertStatus(400);
@@ -87,6 +119,7 @@ class WithdrawalWorkflowTest extends TestCase
         $response = $this->postJson('/api/withdrawals', [
             'amount' => 50, // Below minimum
             'gcash_number' => '09171234567',
+            'gcash_name' => 'John Doe',
         ]);
 
         $response->assertStatus(422);
@@ -168,6 +201,7 @@ class WithdrawalWorkflowTest extends TestCase
         $response = $this->postJson('/api/withdrawals', [
             'amount' => 5000,
             'gcash_number' => '09171234567',
+            'gcash_name' => 'John Doe',
         ]);
 
         $response->assertStatus(400);
@@ -182,6 +216,7 @@ class WithdrawalWorkflowTest extends TestCase
         $this->postJson('/api/withdrawals', [
             'amount' => 5000,
             'gcash_number' => '09171234567',
+            'gcash_name' => 'John Doe',
         ]);
 
         $this->assertDatabaseHas('audit_logs', [
@@ -197,13 +232,14 @@ class WithdrawalWorkflowTest extends TestCase
         Withdrawal::factory()->create([
             'user_id' => $this->user->id,
             'amount' => 40000,
-            'status' => 'approved',
+            'status' => 'completed',
             'created_at' => now(),
         ]);
 
         $response = $this->postJson('/api/withdrawals', [
             'amount' => 20000, // Would exceed daily limit of 50000
             'gcash_number' => '09171234567',
+            'gcash_name' => 'John Doe',
         ]);
 
         $response->assertStatus(400);
@@ -223,6 +259,7 @@ class WithdrawalWorkflowTest extends TestCase
         $response = $this->postJson('/api/withdrawals', [
             'amount' => 2000,
             'gcash_number' => '09171234567',
+            'gcash_name' => 'John Doe',
         ]);
 
         $response->assertStatus(400);

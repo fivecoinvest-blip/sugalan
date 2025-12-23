@@ -32,6 +32,7 @@ class ResponsibleGaming extends Model
         'cool_off_until',
         'last_reality_check',
         'last_session_start',
+        'current_session_start', // Alias for test compatibility (maps to last_session_start)
     ];
 
     protected $casts = [
@@ -49,6 +50,7 @@ class ResponsibleGaming extends Model
         'cool_off_until' => 'datetime',
         'last_reality_check' => 'datetime',
         'last_session_start' => 'datetime',
+        'current_session_start' => 'datetime',  // Alias for test compatibility
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -60,6 +62,64 @@ class ResponsibleGaming extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    // Accessors for test compatibility (maps deposit_limit_daily to daily_deposit_limit, etc)
+    public function getDepositLimitDailyAttribute()
+    {
+        return $this->daily_deposit_limit;
+    }
+
+    public function getDepositLimitWeeklyAttribute()
+    {
+        return $this->weekly_deposit_limit;
+    }
+
+    public function getDepositLimitMonthlyAttribute()
+    {
+        return $this->monthly_deposit_limit;
+    }
+
+    public function getWagerLimitDailyAttribute()
+    {
+        return $this->daily_wager_limit;
+    }
+
+    public function getWagerLimitWeeklyAttribute()
+    {
+        return $this->weekly_wager_limit;
+    }
+
+    public function getWagerLimitMonthlyAttribute()
+    {
+        return $this->monthly_wager_limit;
+    }
+
+    public function getLossLimitDailyAttribute()
+    {
+        return $this->daily_loss_limit;
+    }
+
+    public function getLossLimitWeeklyAttribute()
+    {
+        return $this->weekly_loss_limit;
+    }
+
+    public function getLossLimitMonthlyAttribute()
+    {
+        return $this->monthly_loss_limit;
+    }
+
+    public function getSelfExclusionUntilAttribute()
+    {
+        return $this->self_exclusion_end;
+    }
+
+    public function getSessionLimitMinutesAttribute()
+    {
+        return $this->session_duration_limit;
+    }
+
+    // Mutators removed - current_session_start is now a real database column
 
     /**
      * Check if user is self-excluded

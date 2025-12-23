@@ -17,11 +17,19 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $request->validate([
-            'username' => 'required|string',
+            'username' => 'required_without:email|string',
+            'email' => 'required_without:username|string',
             'password' => 'required|string',
         ]);
 
-        $admin = AdminUser::where('username', $request->username)
+        // Support login with either username or email
+        $admin = AdminUser::where(function ($query) use ($request) {
+            if ($request->filled('username')) {
+                $query->where('username', $request->username);
+            } else {
+                $query->where('email', $request->email);
+            }
+        })
             ->where('is_active', true)
             ->first();
 

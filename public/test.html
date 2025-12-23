@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sugalan - Backend Integration Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #666;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #38a169;
+        }
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        .status.info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #667eea;
+        }
+        .info-value {
+            color: #333;
+            word-break: break-all;
+        }
+        .hidden {
+            display: none;
+        }
+        pre {
+            background: #f7fafc;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge.online {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        .badge.offline {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎰 Sugalan Casino - Integration Test</h1>
+            <p>Test backend-frontend communication and authentication</p>
+            <div style="margin-top: 15px;">
+                <span id="backendStatus" class="badge offline">Backend: Checking...</span>
+                <span id="authStatus" class="badge offline" style="margin-left: 10px;">Auth: Not Logged In</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Registration Card -->
+            <div class="card">
+                <h3>📝 Registration</h3>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="regUsername" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="text" id="regPhone" placeholder="09123456789">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="regPassword" placeholder="Minimum 6 characters">
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="regPasswordConfirm" placeholder="Confirm password">
+                </div>
+                <button class="btn btn-primary" onclick="register()">Register</button>
+                <div id="regStatus" class="hidden"></div>
+            </div>
+
+            <!-- Login Card -->
+            <div class="card">
+                <h3>🔐 Login</h3>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="text" id="loginPhone" value="09972382805" placeholder="09123456789">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" value="Test123!" placeholder="Enter password">
+                </div>
+                <button class="btn btn-primary" onclick="login()">Login</button>
+                <button class="btn btn-success" onclick="createGuest()">Play as Guest</button>
+                <button class="btn btn-danger" onclick="logout()">Logout</button>
+                <div id="loginStatus" class="hidden"></div>
+            </div>
+
+            <!-- User Info Card -->
+            <div class="card">
+                <h3>👤 User Info</h3>
+                <button class="btn btn-primary" onclick="getUserInfo()">Get My Info</button>
+                <div id="userInfo" class="hidden"></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Wallet Card -->
+            <div class="card">
+                <h3>💰 Wallet</h3>
+                <button class="btn btn-primary" onclick="getWalletBalance()">Get Balance</button>
+                <div id="walletInfo" class="hidden"></div>
+            </div>
+
+            <!-- VIP Card -->
+            <div class="card">
+                <h3>⭐ VIP Status</h3>
+                <button class="btn btn-primary" onclick="getVIPStatus()">Get VIP Info</button>
+                <div id="vipInfo" class="hidden"></div>
+            </div>
+
+            <!-- Games Card -->
+            <div class="card">
+                <h3>🎮 Games</h3>
+                <button class="btn btn-success" onclick="playDice()">Play Dice (₱10)</button>
+                <button class="btn btn-success" onclick="playPlinko()">Play Plinko (₱5)</button>
+                <button class="btn btn-success" onclick="playWheel()">Play Wheel (₱10)</button>
+                <div id="gameInfo" class="hidden"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Request/Response Log</h3>
+            <button class="btn btn-danger" onclick="clearLog()">Clear Log</button>
+            <pre id="log"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let logContent = [];
+
+        // Initialize
+        checkBackend();
+        checkAuth();
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.unshift(`[${timestamp}] ${message}`);
+            if (logContent.length > 50) logContent.pop();
+            document.getElementById('log').textContent = logContent.join('\n');
+        }
+
+        function clearLog() {
+            logContent = [];
+            document.getElementById('log').textContent = '';
+        }
+
+        function showStatus(elementId, message, isSuccess) {
+            const el = document.getElementById(elementId);
+            el.className = `status ${isSuccess ? 'success' : 'error'}`;
+            el.textContent = message;
+            el.classList.remove('hidden');
+        }
+
+        async function checkBackend() {
+            try {
+                const response = await fetch(API_BASE + '/auth/register', {
+                    method: 'OPTIONS'
+                });
+                document.getElementById('backendStatus').textContent = 'Backend: Online';
+                document.getElementById('backendStatus').className = 'badge online';
+                log('✓ Backend is online and accessible');
+            } catch (error) {
+                document.getElementById('backendStatus').textContent = 'Backend: Offline';
+                document.getElementById('backendStatus').className = 'badge offline';
+                log('✗ Backend is not accessible: ' + error.message, 'error');
+            }
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                document.getElementById('authStatus').textContent = 'Auth: Logged In';
+                document.getElementById('authStatus').className = 'badge online';
+                log('✓ User is authenticated (token found in localStorage)');
+            } else {
+                document.getElementById('authStatus').textContent = 'Auth: Not Logged In';
+                document.getElementById('authStatus').className = 'badge offline';
+            }
+        }
+
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const options = {
+                method,
+                headers,
+            };
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            log(`→ ${method} ${endpoint}` + (data ? ` ${JSON.stringify(data)}` : ''));
+
+            try {
+                const response = await fetch(API_BASE + endpoint, options);
+                const result = await response.json();
+                
+                log(`← ${response.status} ${JSON.stringify(result).substring(0, 200)}...`);
+                
+                return { success: response.ok, data: result, status: response.status };
+            } catch (error) {
+                log(`✗ Error: ${error.message}`, 'error');
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('regUsername').value;
+            const phone = document.getElementById('regPhone').value;
+            const password = document.getElementById('regPassword').value;
+            const password_confirmation = document.getElementById('regPasswordConfirm').value;
+
+            if (!username || !phone || !password || !password_confirmation) {
+                showStatus('regStatus', 'Please fill all fields', false);
+                return;
+            }
+
+            const result = await apiCall('/auth/register', 'POST', {
+                username,
+                phone,
+                password,
+                password_confirmation
+            });
+
+            if (result.success && result.data.success) {
+                const token = result.data.data.access_token;
+                localStorage.setItem('token', token);
+                showStatus('regStatus', '✓ Registration successful! Token saved.', true);
+                checkAuth();
+                log('✓ User registered and logged in');
+            } else {
+                showStatus('regStatus', '✗ Registration failed: ' + (result.data.message || JSON.stringify(result.data.errors)), false);
+            }
+        }
+
+        async function login() {
+            const phone = document.getElementById('loginPhone').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (!phone || !password) {
+                showStatus('loginStatus', 'Please fill all fields', false);
+                return;
+            }
+
+            const result = await apiCall('/auth/login', 'POST', { phone, password });
+
+            if (result.success && result.data.success) {
+                const token = result.data.data.access_token;
+                localStorage.setItem('token', token);
+                showStatus('loginStatus', '✓ Login successful! Token saved.', true);
+                checkAuth();
+                log('✓ User logged in successfully');
+            } else {
+                showStatus('loginStatus', '✗ Login failed: ' + (result.data.message || 'Invalid credentials'), false);
+            }
+        }
+
+        async function createGuest() {
+            const result = await apiCall('/auth/guest', 'POST');
+
+            if (result.success && result.data.success) {
+                const token = result.data.data.access_token;
+                localStorage.setItem('token', token);
+                showStatus('loginStatus', '✓ Guest account created! Token saved.', true);
+                checkAuth();
+                log('✓ Guest account created');
+            } else {
+                showStatus('loginStatus', '✗ Failed to create guest account', false);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            showStatus('loginStatus', '✓ Logged out', true);
+            checkAuth();
+            log('✓ User logged out');
+        }
+
+        async function getUserInfo() {
+            const result = await apiCall('/auth/me', 'GET');
+
+            if (result.success && result.data.success) {
+                const user = result.data.data;
+                const html = `
+                    <div class="status success">User Info Retrieved</div>
+                    <div class="info-grid">
+                        <span class="info-label">ID:</span><span class="info-value">${user.id}</span>
+                        <span class="info-label">Username:</span><span class="info-value">${user.username || 'N/A'}</span>
+                        <span class="info-label">Phone:</span><span class="info-value">${user.phone_number}</span>
+                        <span class="info-label">Auth Method:</span><span class="info-value">${user.auth_method}</span>
+                        <span class="info-label">VIP Level:</span><span class="info-value">${user.vip_level?.name || 'N/A'}</span>
+                        <span class="info-label">Status:</span><span class="info-value">${user.status}</span>
+                        <span class="info-label">Referral Code:</span><span class="info-value">${user.referral_code}</span>
+                    </div>
+                `;
+                document.getElementById('userInfo').innerHTML = html;
+                document.getElementById('userInfo').classList.remove('hidden');
+            } else {
+                showStatus('userInfo', '✗ Failed to get user info. Please login first.', false);
+            }
+        }
+
+        async function getWalletBalance() {
+            const result = await apiCall('/wallet/balance', 'GET');
+
+            if (result.success && result.data.success) {
+                const wallet = result.data.data;
+                const html = `
+                    <div class="status success">Wallet Balance</div>
+                    <div class="info-grid">
+                        <span class="info-label">Real Balance:</span><span class="info-value">₱${parseFloat(wallet.real_balance).toFixed(2)}</span>
+                        <span class="info-label">Bonus Balance:</span><span class="info-value">₱${parseFloat(wallet.bonus_balance).toFixed(2)}</span>
+                        <span class="info-label">Total:</span><span class="info-value">₱${parseFloat(wallet.total_balance).toFixed(2)}</span>
+                        <span class="info-label">Lifetime Wagered:</span><span class="info-value">₱${parseFloat(wallet.lifetime_wagered).toFixed(2)}</span>
+                    </div>
+                `;
+                document.getElementById('walletInfo').innerHTML = html;
+                document.getElementById('walletInfo').classList.remove('hidden');
+            } else {
+                document.getElementById('walletInfo').innerHTML = '<div class="status error">✗ Failed to get wallet balance</div>';
+                document.getElementById('walletInfo').classList.remove('hidden');
+            }
+        }
+
+        async function getVIPStatus() {
+            const result = await apiCall('/vip/progress', 'GET');
+
+            if (result.success && result.data.success) {
+                const vip = result.data.data;
+                const html = `
+                    <div class="status success">VIP Status</div>
+                    <div class="info-grid">
+                        <span class="info-label">Current Level:</span><span class="info-value">${vip.current_level}</span>
+                        <span class="info-label">Progress:</span><span class="info-value">${vip.progress_percentage}%</span>
+                        <span class="info-label">Wagered:</span><span class="info-value">₱${parseFloat(vip.wagered_amount).toFixed(2)}</span>
+                        <span class="info-label">Next Level:</span><span class="info-value">${vip.next_level || 'Max Level'}</span>
+                    </div>
+                `;
+                document.getElementById('vipInfo').innerHTML = html;
+                document.getElementById('vipInfo').classList.remove('hidden');
+            } else {
+                document.getElementById('vipInfo').innerHTML = '<div class="status error">✗ Failed to get VIP status</div>';
+                document.getElementById('vipInfo').classList.remove('hidden');
+            }
+        }
+
+        async function playDice() {
+            const result = await apiCall('/games/dice/play', 'POST', {
+                bet_amount: 10,
+                target: 50,
+                prediction: 'over'
+            });
+
+            if (result.success && result.data.success) {
+                const game = result.data.data;
+                const html = `
+                    <div class="status ${game.is_win ? 'success' : 'error'}">
+                        ${game.is_win ? '🎉 WIN!' : '😢 LOSE'}
+                    </div>
+                    <div class="info-grid">
+                        <span class="info-label">Result:</span><span class="info-value">${game.result}</span>
+                        <span class="info-label">Target:</span><span class="info-value">${game.target}</span>
+                        <span class="info-label">Bet:</span><span class="info-value">₱${game.bet_amount}</span>
+                        <span class="info-label">Payout:</span><span class="info-value">₱${game.win_amount}</span>
+                        <span class="info-label">New Balance:</span><span class="info-value">₱${game.new_balance}</span>
+                    </div>
+                `;
+                document.getElementById('gameInfo').innerHTML = html;
+                document.getElementById('gameInfo').classList.remove('hidden');
+            } else {
+                document.getElementById('gameInfo').innerHTML = `<div class="status error">✗ ${result.data.message || 'Game failed'}</div>`;
+                document.getElementById('gameInfo').classList.remove('hidden');
+            }
+        }
+
+        async function playPlinko() {
+            const result = await apiCall('/games/plinko/play', 'POST', {
+                bet_amount: 5,
+                risk_level: 'medium',
+                rows: 12
+            });
+
+            if (result.success && result.data.success) {
+                const game = result.data.data;
+                const html = `
+                    <div class="status ${game.is_win ? 'success' : 'error'}">
+                        ${game.is_win ? '🎉 WIN!' : '😢 LOSE'}
+                    </div>
+                    <div class="info-grid">
+                        <span class="info-label">Landing Slot:</span><span class="info-value">${game.landing_slot}</span>
+                        <span class="info-label">Multiplier:</span><span class="info-value">${game.multiplier}x</span>
+                        <span class="info-label">Bet:</span><span class="info-value">₱${game.bet_amount}</span>
+                        <span class="info-label">Payout:</span><span class="info-value">₱${game.win_amount}</span>
+                    </div>
+                `;
+                document.getElementById('gameInfo').innerHTML = html;
+                document.getElementById('gameInfo').classList.remove('hidden');
+            } else {
+                document.getElementById('gameInfo').innerHTML = `<div class="status error">✗ ${result.data.message || 'Game failed'}</div>`;
+                document.getElementById('gameInfo').classList.remove('hidden');
+            }
+        }
+
+        async function playWheel() {
+            const result = await apiCall('/games/wheel/spin', 'POST', {
+                bet_amount: 10,
+                risk_level: 'medium'
+            });
+
+            if (result.success && result.data.success) {
+                const game = result.data.data;
+                const html = `
+                    <div class="status ${game.is_win ? 'success' : 'error'}">
+                        ${game.is_win ? '🎉 WIN!' : '😢 LOSE'}
+                    </div>
+                    <div class="info-grid">
+                        <span class="info-label">Result Segment:</span><span class="info-value">${game.result_segment}</span>
+                        <span class="info-label">Multiplier:</span><span class="info-value">${game.multiplier}x</span>
+                        <span class="info-label">Bet:</span><span class="info-value">₱${game.bet_amount}</span>
+                        <span class="info-label">Payout:</span><span class="info-value">₱${game.win_amount}</span>
+                    </div>
+                `;
+                document.getElementById('gameInfo').innerHTML = html;
+                document.getElementById('gameInfo').classList.remove('hidden');
+            } else {
+                document.getElementById('gameInfo').innerHTML = `<div class="status error">✗ ${result.data.message || 'Game failed'}</div>`;
+                document.getElementById('gameInfo').classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -52,12 +52,11 @@ class GdprServiceTest extends TestCase
         $zipPath = $this->gdprService->exportUserData($this->user->id);
 
         $this->assertNotNull($zipPath);
-        $this->assertTrue(Storage::exists($zipPath));
+        $this->assertFileExists($zipPath);
         
         // Verify it's a valid ZIP file
-        $fullPath = Storage::path($zipPath);
         $zip = new ZipArchive();
-        $this->assertTrue($zip->open($fullPath) === true);
+        $this->assertTrue($zip->open($zipPath) === true);
         
         // Verify ZIP contains required files
         $this->assertNotFalse($zip->locateName('data.json'));
@@ -122,7 +121,7 @@ class GdprServiceTest extends TestCase
         $this->assertTrue($result);
         
         // Verify user is marked for deletion
-        $user = User::find($this->user->id);
+        $user = User::withTrashed()->find($this->user->id);
         $this->assertNotNull($user->deleted_at);
     }
 
@@ -135,6 +134,7 @@ class GdprServiceTest extends TestCase
 
         $this->assertTrue($result);
         
+        // Refresh user to get updated data from database
         $user = User::find($this->user->id);
         $this->assertStringContainsString('deleted_user_', $user->email);
     }

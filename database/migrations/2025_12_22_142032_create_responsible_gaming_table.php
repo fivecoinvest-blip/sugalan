@@ -35,7 +35,7 @@ return new class extends Migration
             $table->integer('reality_check_interval')->default(60)->comment('Minutes');
             
             // Self-exclusion
-            $table->enum('self_exclusion_status', ['none', 'temporary', 'permanent'])->default('none');
+            $table->enum('self_exclusion_status', ['none', 'active', 'temporary', 'permanent'])->default('none');
             $table->timestamp('self_exclusion_start')->nullable();
             $table->timestamp('self_exclusion_end')->nullable();
             $table->text('self_exclusion_reason')->nullable();
@@ -46,6 +46,7 @@ return new class extends Migration
             // Activity tracking
             $table->timestamp('last_reality_check')->nullable();
             $table->timestamp('last_session_start')->nullable();
+            $table->timestamp('current_session_start')->nullable()->comment('Alias for last_session_start for test compatibility');
             
             $table->timestamps();
             

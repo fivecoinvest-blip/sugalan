@@ -31,6 +31,12 @@ class AuthService
     public function registerWithPhone(array $data): array
     {
         return DB::transaction(function () use ($data) {
+            // Get Bronze VIP level
+            $bronzeLevel = \App\Models\VipLevel::where('level', 1)->first();
+            if (!$bronzeLevel) {
+                throw new \Exception('Bronze VIP level not found');
+            }
+            
             // Create user
             $user = User::create([
                 'uuid' => Str::uuid(),
@@ -38,7 +44,7 @@ class AuthService
                 'phone_number' => $data['phone_number'],
                 'password' => Hash::make($data['password']),
                 'auth_method' => 'phone',
-                'vip_level_id' => 1, // Bronze
+                'vip_level_id' => $bronzeLevel->id,
                 'referral_code' => strtoupper(Str::random(8)),
                 'referred_by' => $data['referred_by'] ?? null,
                 'status' => 'active',
@@ -114,13 +120,19 @@ class AuthService
                 ->first();
 
             if (!$user) {
+                // Get Bronze VIP level
+                $bronzeLevel = \App\Models\VipLevel::where('level', 1)->first();
+                if (!$bronzeLevel) {
+                    throw new \Exception('Bronze VIP level not found');
+                }
+                
                 // Create new user
                 $user = User::create([
                     'uuid' => Str::uuid(),
                     'username' => 'User_' . substr($walletAddress, 0, 8),
                     'wallet_address' => $walletAddress,
                     'auth_method' => 'metamask',
-                    'vip_level_id' => 1,
+                    'vip_level_id' => $bronzeLevel->id,
                     'status' => 'active',
                 ]);
 
@@ -158,6 +170,12 @@ class AuthService
                 ->first();
 
             if (!$user) {
+                // Get Bronze VIP level
+                $bronzeLevel = \App\Models\VipLevel::where('level', 1)->first();
+                if (!$bronzeLevel) {
+                    throw new \Exception('Bronze VIP level not found');
+                }
+                
                 // Create new user
                 $user = User::create([
                     'uuid' => Str::uuid(),
@@ -165,7 +183,7 @@ class AuthService
                     'telegram_id' => $telegramData['id'],
                     'telegram_username' => $telegramData['username'] ?? null,
                     'auth_method' => 'telegram',
-                    'vip_level_id' => 1,
+                    'vip_level_id' => $bronzeLevel->id,
                     'status' => 'active',
                 ]);
 
@@ -198,11 +216,17 @@ class AuthService
     public function createGuestAccount(): array
     {
         return DB::transaction(function () {
+            // Get Bronze VIP level
+            $bronzeLevel = \App\Models\VipLevel::where('level', 1)->first();
+            if (!$bronzeLevel) {
+                throw new \Exception('Bronze VIP level not found');
+            }
+            
             $user = User::create([
                 'uuid' => Str::uuid(),
                 'username' => 'Guest_' . Str::random(8),
                 'auth_method' => 'guest',
-                'vip_level_id' => 1,
+                'vip_level_id' => $bronzeLevel->id,
                 'status' => 'active',
             ]);
 
@@ -280,11 +304,11 @@ class AuthService
     {
         AuditLog::create([
             'user_id' => $user->id,
+            'actor_type' => 'user',
             'action' => $action,
-            'auditable_type' => User::class,
-            'auditable_id' => $user->id,
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
+            'resource_type' => 'user',
+            'resource_id' => $user->id,
+            'changes' => $newValues ? ['after' => $newValues] : null,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
         ]);

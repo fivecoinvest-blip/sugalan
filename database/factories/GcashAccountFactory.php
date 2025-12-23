@@ -19,11 +19,13 @@ class GcashAccountFactory extends Factory
         return [
             'account_name' => $this->faker->name(),
             'account_number' => '0917' . $this->faker->numerify('#######'),
-            'qr_code_url' => null,
             'is_active' => true,
             'daily_limit' => $this->faker->randomFloat(2, 50000, 500000),
-            'current_daily_amount' => 0,
-            'sort_order' => $this->faker->numberBetween(1, 10),
+            'monthly_limit' => $this->faker->randomFloat(2, 100000, 1000000),
+            'daily_received' => 0,
+            'monthly_received' => 0,
+            'display_order' => $this->faker->numberBetween(1, 10),
+            'notes' => $this->faker->optional()->sentence(),
         ];
     }
 }

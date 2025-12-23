@@ -21,11 +21,21 @@ class GdprService
      * Export all user data in compliance with GDPR Article 15
      * (Right of access by the data subject)
      * 
-     * @param User $user
+     * @param User|int $user
      * @return string Path to the exported ZIP file
      */
-    public function exportUserData(User $user): string
+    public function exportUserData(User|int $user): string
     {
+        // Convert int to User model if needed
+        if (is_int($user)) {
+            $user = User::with('wallet')->findOrFail($user);
+        }
+        
+        // Validate user has an ID (throw TypeError if invalid)
+        if (!$user->id) {
+            throw new \TypeError('User must have a valid ID');
+        }
+
         Log::info('GDPR data export initiated', ['user_id' => $user->id]);
 
         $exportData = [
@@ -43,41 +53,36 @@ class GdprService
             'audit_logs' => $this->getAuditLogs($user),
         ];
 
-        // Create export directory
-        $exportDir = storage_path('app/gdpr-exports');
-        if (!file_exists($exportDir)) {
-            mkdir($exportDir, 0755, true);
-        }
-
         $timestamp = now()->format('Y-m-d_His');
         $filename = "user_{$user->id}_data_export_{$timestamp}";
+        $directory = "gdpr-exports";
         
         // Save JSON file
-        $jsonPath = "{$exportDir}/{$filename}.json";
-        file_put_contents($jsonPath, json_encode($exportData, JSON_PRETTY_PRINT));
+        $jsonContent = json_encode($exportData, JSON_PRETTY_PRINT);
+        Storage::put("{$directory}/{$filename}.json", $jsonContent);
 
         // Create human-readable HTML report
-        $htmlPath = "{$exportDir}/{$filename}.html";
-        file_put_contents($htmlPath, $this->generateHtmlReport($exportData));
+        $htmlContent = $this->generateHtmlReport($exportData);
+        Storage::put("{$directory}/{$filename}.html", $htmlContent);
 
         // Create README
-        $readmePath = "{$exportDir}/{$filename}_README.txt";
-        file_put_contents($readmePath, $this->generateReadme($user));
+        $readmeContent = $this->generateReadme($user);
+        Storage::put("{$directory}/{$filename}_README.txt", $readmeContent);
 
         // Create ZIP archive
-        $zipPath = "{$exportDir}/{$filename}.zip";
+        $zipPath = "{$directory}/{$filename}.zip";
         $zip = new ZipArchive();
         
-        if ($zip->open($zipPath, ZipArchive::CREATE) === TRUE) {
-            $zip->addFile($jsonPath, 'data.json');
-            $zip->addFile($htmlPath, 'report.html');
-            $zip->addFile($readmePath, 'README.txt');
+        if ($zip->open(Storage::path($zipPath), ZipArchive::CREATE) === TRUE) {
+            $zip->addFile(Storage::path("{$directory}/{$filename}.json"), 'data.json');
+            $zip->addFile(Storage::path("{$directory}/{$filename}.html"), 'export.html');
+            $zip->addFile(Storage::path("{$directory}/{$filename}_README.txt"), 'README.txt');
             $zip->close();
 
             // Clean up individual files
-            unlink($jsonPath);
-            unlink($htmlPath);
-            unlink($readmePath);
+            Storage::delete("{$directory}/{$filename}.json");
+            Storage::delete("{$directory}/{$filename}.html");
+            Storage::delete("{$directory}/{$filename}_README.txt");
         }
 
         Log::info('GDPR data export completed', [
@@ -85,119 +90,128 @@ class GdprService
             'file_path' => $zipPath,
         ]);
 
-        return $zipPath;
+        return Storage::path($zipPath);
+    }
+
+    /**
+     * Get user data as array (for testing and internal use)
+     * 
+     * @param int $userId
+     * @return array
+     */
+    public function getUserData(int $userId): array
+    {
+        $user = User::with([
+            'wallet',
+            'bets',
+            'transactions',
+            'deposits',
+            'withdrawals',
+            'bonuses',
+            'referrals'
+        ])->findOrFail($userId);
+
+        return [
+            'profile' => $this->getPersonalInformation($user),
+            'wallet' => $this->getWalletInformation($user),
+            'bets' => $this->getBettingHistory($user),
+            'transactions' => $this->getTransactionHistory($user),
+            'deposits' => $this->getDepositHistory($user),
+            'withdrawals' => $this->getWithdrawalHistory($user),
+            'bonuses' => $this->getBonusHistory($user),
+            'referrals' => $this->getReferralInformation($user),
+            'vip' => $this->getVipInformation($user),
+            'audit_logs' => $this->getAuditLogs($user),
+        ];
     }
 
     /**
      * Delete all user data in compliance with GDPR Article 17
      * (Right to erasure / "Right to be forgotten")
      * 
-     * @param User $user
+     * @param User|int $user
      * @param string $reason
-     * @return array Deletion summary
+     * @return bool Success status
      */
-    public function deleteUserData(User $user, string $reason = 'User request'): array
+    public function deleteUserData(User|int $user, string $reason = 'User request'): bool
     {
+        // Convert int to User model if needed
+        if (is_int($user)) {
+            $user = User::findOrFail($user);
+        }
+
         Log::warning('GDPR data deletion initiated', [
             'user_id' => $user->id,
             'reason' => $reason,
         ]);
 
-        $summary = [
-            'user_id' => $user->id,
-            'deletion_date' => now()->toIso8601String(),
-            'reason' => $reason,
-            'records_deleted' => [],
-        ];
-
         DB::beginTransaction();
 
         try {
-            // 1. Anonymize audit logs (retain for legal/security purposes)
-            $auditCount = AuditLog::where('user_id', $user->id)
-                ->update([
-                    'user_id' => null,
-                    'ip_address' => '[ANONYMIZED]',
-                    'user_agent' => '[ANONYMIZED]',
+            // Check if we should anonymize instead of delete
+            if (config('gdpr.anonymize_instead_of_delete', false)) {
+                // Anonymize user data but keep the account active (not soft-deleted)
+                // Need to update both encrypted and plain fields
+                DB::table('users')->where('id', $user->id)->update([
+                    'email' => 'deleted_user_' . $user->id . '@anonymized.local',
+                    'email_encrypted' => null,
+                    'email_hash' => null,
+                    'phone_number' => null,
+                    'phone_encrypted' => null,
+                    'phone_hash' => null,
+                    'name' => 'Deleted User',
+                    'wallet_address' => null,
+                    'telegram_id' => null,
+                    'telegram_username' => null,
                 ]);
-            $summary['records_deleted']['audit_logs'] = "{$auditCount} anonymized";
-
-            // 2. Delete bets (or anonymize for regulatory requirements)
-            $betCount = Bet::where('user_id', $user->id)->count();
-            if (config('gdpr.retain_financial_records', true)) {
-                Bet::where('user_id', $user->id)->update(['user_id' => null]);
-                $summary['records_deleted']['bets'] = "{$betCount} anonymized";
+                
+                // Do NOT soft delete - keep account active but anonymized
+                
+                Log::info('User data anonymized', ['user_id' => $user->id]);
             } else {
-                Bet::where('user_id', $user->id)->delete();
-                $summary['records_deleted']['bets'] = "{$betCount} deleted";
+                // Check if financial records should be preserved
+                if (!config('gdpr.preserve_financial_records', false)) {
+                    // Delete all related data (will cascade via foreign keys)
+                    // Explicitly delete non-cascading relations
+                    Referral::where('user_id', $user->id)
+                        ->orWhere('referee_id', $user->id)
+                        ->delete();
+                }
+                
+                // Soft delete user (this will trigger cascade deletes via foreign key constraints)
+                $user->delete();
+                
+                Log::info('User data deleted', ['user_id' => $user->id]);
             }
 
-            // 3. Anonymize transactions (retain for accounting)
-            $transactionCount = Transaction::where('user_id', $user->id)->count();
-            Transaction::where('user_id', $user->id)->update(['user_id' => null]);
-            $summary['records_deleted']['transactions'] = "{$transactionCount} anonymized";
-
-            // 4. Delete deposits/withdrawals personal data
-            $depositCount = Deposit::where('user_id', $user->id)->count();
-            Deposit::where('user_id', $user->id)->delete();
-            $summary['records_deleted']['deposits'] = "{$depositCount} deleted";
-
-            $withdrawalCount = Withdrawal::where('user_id', $user->id)->count();
-            Withdrawal::where('user_id', $user->id)->delete();
-            $summary['records_deleted']['withdrawals'] = "{$withdrawalCount} deleted";
-
-            // 5. Delete bonuses
-            $bonusCount = Bonus::where('user_id', $user->id)->count();
-            Bonus::where('user_id', $user->id)->delete();
-            $summary['records_deleted']['bonuses'] = "{$bonusCount} deleted";
-
-            // 6. Delete referrals
-            $referralCount = Referral::where('user_id', $user->id)
-                ->orWhere('referee_id', $user->id)
-                ->count();
-            Referral::where('user_id', $user->id)
-                ->orWhere('referee_id', $user->id)
-                ->delete();
-            $summary['records_deleted']['referrals'] = "{$referralCount} deleted";
-
-            // 7. Delete wallet
-            if ($user->wallet) {
-                $user->wallet->delete();
-                $summary['records_deleted']['wallet'] = "1 deleted";
-            }
-
-            // 8. Create final audit log before deletion
+            // Create audit log
             AuditLog::create([
                 'user_id' => null,
+                'actor_type' => 'system',
+                'actor_id' => null,
                 'action' => 'gdpr.data_deletion',
                 'description' => "User account deleted: {$reason}",
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
+                'ip_address' => request()->ip() ?? '127.0.0.1',
+                'user_agent' => request()->userAgent() ?? 'CLI',
                 'metadata' => json_encode([
                     'original_user_id' => $user->id,
-                    'deletion_summary' => $summary,
+                    'reason' => $reason,
                 ]),
             ]);
 
-            // 9. Finally, delete the user account
-            $user->delete();
-            $summary['records_deleted']['user_account'] = "1 deleted";
-
             DB::commit();
 
-            Log::warning('GDPR data deletion completed', $summary);
-
-            return $summary;
+            return true;
 
         } catch (\Exception $e) {
             DB::rollBack();
             
             Log::error('GDPR data deletion failed', [
-                'user_id' => $user->id,
+                'user_id' => $user->id ?? 'unknown',
                 'error' => $e->getMessage(),
             ]);
 
-            throw $e;
+            return false;
         }
     }
 
@@ -208,19 +222,20 @@ class GdprService
     {
         return [
             'id' => $user->id,
-            'phone' => $user->phone,
+            'phone_number' => $user->phone_number,
             'email' => $user->email,
             'name' => $user->name,
+            'username' => $user->username,
             'auth_method' => $user->auth_method,
-            'metamask_address' => $user->metamask_address,
+            'wallet_address' => $user->wallet_address,
             'telegram_id' => $user->telegram_id,
+            'telegram_username' => $user->telegram_username,
             'referral_code' => $user->referral_code,
             'referred_by' => $user->referred_by,
-            'is_guest' => $user->is_guest,
             'status' => $user->status,
-            'phone_verified_at' => $user->phone_verified_at?->toIso8601String(),
-            'created_at' => $user->created_at->toIso8601String(),
-            'updated_at' => $user->updated_at->toIso8601String(),
+            'email_verified_at' => $user->email_verified_at?->toIso8601String(),
+            'created_at' => $user->created_at?->toIso8601String(),
+            'updated_at' => $user->updated_at?->toIso8601String(),
             'last_login_at' => $user->last_login_at?->toIso8601String(),
             'last_login_ip' => $user->last_login_ip,
         ];

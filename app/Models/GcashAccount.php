@@ -15,11 +15,14 @@ class GcashAccount extends Model
     protected $fillable = [
         'account_name',
         'account_number',
-        'qr_code_url',
         'is_active',
         'daily_limit',
-        'current_daily_amount',
-        'sort_order',
+        'monthly_limit',
+        'daily_received',
+        'monthly_received',
+        'last_reset_date',
+        'display_order',
+        'notes',
     ];
 
     protected $hidden = [
@@ -32,7 +35,11 @@ class GcashAccount extends Model
         return [
             'is_active' => 'boolean',
             'daily_limit' => 'decimal:2',
-            'current_daily_amount' => 'decimal:2',
+            'monthly_limit' => 'decimal:2',
+            'daily_received' => 'decimal:2',
+            'monthly_received' => 'decimal:2',
+            'last_reset_date' => 'date',
+            'display_order' => 'integer',
         ];
     }
 
@@ -81,7 +88,7 @@ class GcashAccount extends Model
     public function hasReachedDailyLimit(): bool
     {
         return $this->daily_limit > 0 && 
-               $this->current_daily_amount >= $this->daily_limit;
+               $this->daily_received >= $this->daily_limit;
     }
 
     public function getRemainingDailyLimit(): float
@@ -89,6 +96,6 @@ class GcashAccount extends Model
         if ($this->daily_limit <= 0) {
             return PHP_FLOAT_MAX;
         }
-        return max(0, $this->daily_limit - $this->current_daily_amount);
+        return max(0, $this->daily_limit - $this->daily_received);
     }
 }

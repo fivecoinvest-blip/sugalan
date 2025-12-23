@@ -39,6 +39,15 @@ class CrashGameTest extends TestCase
         $this->crashGame->startRound();
     }
 
+    protected function tearDown(): void
+    {
+        // Clean up crash game cache to prevent test pollution
+        \Illuminate\Support\Facades\Cache::forget('crash_round_current');
+        \Illuminate\Support\Facades\Cache::flush();
+        
+        parent::tearDown();
+    }
+
     /** @test */
     public function user_can_get_current_crash_round()
     {

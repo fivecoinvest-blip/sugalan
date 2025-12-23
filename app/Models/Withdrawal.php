@@ -38,6 +38,17 @@ class Withdrawal extends Model
         ];
     }
 
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($withdrawal) {
+            if (empty($withdrawal->uuid)) {
+                $withdrawal->uuid = \Illuminate\Support\Str::uuid();
+            }
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

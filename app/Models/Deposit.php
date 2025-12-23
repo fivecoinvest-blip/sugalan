@@ -6,19 +6,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Str;
 
 class Deposit extends Model
 {
     use HasFactory;
     
     protected $fillable = [
+        'uuid',
         'user_id',
         'gcash_account_id',
         'amount',
         'reference_number',
         'screenshot_url',
         'status',
-        'notes',
         'admin_notes',
         'processed_by',
         'processed_at',
@@ -31,6 +32,17 @@ class Deposit extends Model
             'amount' => 'decimal:2',
             'processed_at' => 'datetime',
         ];
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($deposit) {
+            if (empty($deposit->uuid)) {
+                $deposit->uuid = (string) Str::uuid();
+            }
+        });
     }
 
     public function user(): BelongsTo

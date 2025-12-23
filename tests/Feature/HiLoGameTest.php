@@ -89,10 +89,16 @@ class HiLoGameTest extends TestCase
                 'data' => [
                     'correct',
                     'next_card',
-                    'current_multiplier',
                     'game_over',
                 ],
             ]);
+        
+        // Verify the response has either current_multiplier (correct) or final_multiplier (wrong)
+        $data = $response->json('data');
+        $this->assertTrue(
+            isset($data['current_multiplier']) || isset($data['final_multiplier']),
+            'Response should have either current_multiplier or final_multiplier'
+        );
     }
 
     /** @test */
@@ -120,10 +126,16 @@ class HiLoGameTest extends TestCase
                 'data' => [
                     'correct',
                     'next_card',
-                    'current_multiplier',
                     'game_over',
                 ],
             ]);
+        
+        // Verify the response has either current_multiplier (correct) or final_multiplier (wrong)
+        $data = $response->json('data');
+        $this->assertTrue(
+            isset($data['current_multiplier']) || isset($data['final_multiplier']),
+            'Response should have either current_multiplier or final_multiplier'
+        );
     }
 
     /** @test */

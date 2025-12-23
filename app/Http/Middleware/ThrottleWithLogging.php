@@ -16,12 +16,17 @@ class ThrottleWithLogging
      * Implements exponential backoff for repeated violations
      * Logs suspicious activity for fraud detection
      */
-    public function handle(Request $request, Closure $next, string $limits): Response
+    public function handle(Request $request, Closure $next, ?string $limits = '60,1'): Response
     {
         $identifier = $this->getIdentifier($request);
         $key = $this->getCacheKey($identifier, $request->path());
         
         // Parse limits (e.g., "5,60" = 5 attempts per 60 seconds)
+        // Default to 60 requests per minute if not specified
+        if (!$limits) {
+            $limits = '60,1';
+        }
+        
         [$maxAttempts, $decayMinutes] = explode(',', $limits);
         $maxAttempts = (int) $maxAttempts;
         $decayMinutes = (int) $decayMinutes;

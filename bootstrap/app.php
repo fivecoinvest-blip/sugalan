@@ -37,8 +37,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'fraud.detect' => \App\Http\Middleware\DetectFraud::class,
             'verify.signature' => \App\Http\Middleware\VerifyRequestSignature::class,
             'captcha' => \App\Http\Middleware\VerifyCaptcha::class,
+            'financial.security' => \App\Http\Middleware\FinancialTransactionSecurity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Handle unauthenticated API requests with JSON response
+        $exceptions->respond(function (\Illuminate\Http\Response $response, \Throwable $exception, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') && $exception instanceof \Illuminate\Auth\AuthenticationException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.'
+                ], 401);
+            }
+            
+            return $response;
+        });
     })->create();

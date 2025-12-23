@@ -23,7 +23,7 @@ class DepositFactory extends Factory
             'amount' => $this->faker->randomFloat(2, 100, 50000),
             'reference_number' => 'REF' . $this->faker->unique()->numerify('##########'),
             'status' => $this->faker->randomElement(['pending', 'approved', 'rejected', 'cancelled']),
-            'proof_url' => null,
+            'screenshot_url' => null,
         ];
     }
 }

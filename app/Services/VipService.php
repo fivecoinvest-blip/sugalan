@@ -16,27 +16,27 @@ class VipService
      * Check and upgrade user's VIP tier if eligible
      * Based on total wagered amount
      */
-    public function checkForUpgrade(User $user): ?VipLevel
+    public function checkForUpgrade(User $user): bool
     {
+        // Refresh user data to ensure we have latest values
+        $user->refresh();
+        
         // Get current VIP level
         $currentLevel = $user->vipLevel;
         
-        // Get next VIP level
-        $nextLevel = VipLevel::where('level', '>', $currentLevel->level)
-            ->orderBy('level', 'asc')
+        // Find the highest level user qualifies for
+        $newLevel = VipLevel::where('min_wagered_amount', '<=', $user->total_wagered)
+            ->where('level', '>', $currentLevel->level)
+            ->orderBy('level', 'desc')
             ->first();
 
-        // Already at max level
-        if (!$nextLevel) {
-            return null;
+        // No higher level qualifies
+        if (!$newLevel) {
+            return false;
         }
 
-        // Check if user meets the requirement
-        if ($user->total_wagered >= $nextLevel->min_wager_requirement) {
-            return $this->upgradeVipLevel($user, $nextLevel);
-        }
-
-        return null;
+        $this->upgradeVipLevel($user, $newLevel);
+        return true;
     }
 
     /**
@@ -45,16 +45,16 @@ class VipService
      * 
      * @param User $user
      * @param int $inactiveDays Number of days to check for inactivity (default: 90)
-     * @return VipLevel|null Returns new level if downgraded, null otherwise
+     * @return bool Returns true if downgraded, false otherwise
      */
-    public function checkForDowngrade(User $user, int $inactiveDays = 90): ?VipLevel
+    public function checkForDowngrade(User $user, int $inactiveDays = 90): bool
     {
         // Get current VIP level
         $currentLevel = $user->vipLevel;
         
         // Don't downgrade Bronze (lowest tier)
         if ($currentLevel->level === 1) {
-            return null;
+            return false;
         }
 
         // Calculate wagering in the last N days
@@ -63,12 +63,12 @@ class VipService
             ->sum('bet_amount');
 
         // Get minimum required wagering for current level (10% of requirement per 90 days)
-        $requiredActivity = $currentLevel->min_wager_requirement * 0.10;
+        $requiredActivity = $currentLevel->min_wagered_amount * 0.10;
 
         // User is inactive, find appropriate lower tier
         if ($recentWagered < $requiredActivity) {
             // Find the highest tier they qualify for based on total wagered
-            $newLevel = VipLevel::where('min_wager_requirement', '<=', $user->total_wagered)
+            $newLevel = VipLevel::where('min_wagered_amount', '<=', $user->total_wagered)
                 ->where('level', '<', $currentLevel->level)
                 ->orderBy('level', 'desc')
                 ->first();
@@ -79,11 +79,12 @@ class VipService
             }
 
             if ($newLevel && $newLevel->level < $currentLevel->level) {
-                return $this->downgradeVipLevel($user, $newLevel, $recentWagered, $requiredActivity);
+                $this->downgradeVipLevel($user, $newLevel, $recentWagered, $requiredActivity);
+                return true;
             }
         }
 
-        return null;
+        return false;
     }
 
     /**
@@ -154,14 +155,16 @@ class VipService
         return [
             'level' => $vipLevel->level,
             'name' => $vipLevel->name,
-            'daily_withdraw_limit' => $vipLevel->daily_withdraw_limit,
-            'weekly_withdraw_limit' => $vipLevel->weekly_withdraw_limit,
-            'monthly_withdraw_limit' => $vipLevel->monthly_withdraw_limit,
+            'bonus_multiplier' => $vipLevel->bonus_multiplier,
+            'wagering_reduction' => $vipLevel->wagering_reduction,
             'cashback_percentage' => $vipLevel->cashback_percentage,
-            'rakeback_percentage' => $vipLevel->rakeback_percentage,
-            'wagering_requirement_multiplier' => $vipLevel->wagering_requirement_multiplier,
-            'min_wager_requirement' => $vipLevel->min_wager_requirement,
-            'progress_to_next' => $this->getProgressToNextLevel($user),
+            'withdrawal_limit' => [
+                'daily' => $vipLevel->withdrawal_limit_daily,
+                'weekly' => $vipLevel->withdrawal_limit_weekly,
+                'monthly' => $vipLevel->withdrawal_limit_monthly,
+            ],
+            'withdrawal_time' => $vipLevel->withdrawal_processing_hours,
+            'min_wager_requirement' => $vipLevel->min_wagered_amount ?? 0,
         ];
     }
 
@@ -176,21 +179,27 @@ class VipService
             ->orderBy('level', 'asc')
             ->first();
 
+        $currentWagered = $user->total_wagered;
+
         if (!$nextLevel) {
-            return null;
+            return [
+                'current_level' => $currentLevel->name,
+                'next_level' => null,
+                'current_wagered' => $currentWagered,
+                'required_wagered' => null,
+                'progress_percentage' => 100,
+            ];
         }
 
-        $currentWagered = $user->total_wagered;
-        $requirement = $nextLevel->min_wager_requirement;
-        $remaining = max(0, $requirement - $currentWagered);
-        $percentage = $requirement > 0 ? round(($currentWagered / $requirement) * 100, 2) : 100;
+        $requirement = $nextLevel->min_wagered_amount;
+        $percentage = $requirement > 0 ? round(($currentWagered / $requirement) * 100, 2) : 0;
 
         return [
+            'current_level' => $currentLevel->name,
             'next_level' => $nextLevel->name,
             'current_wagered' => $currentWagered,
-            'requirement' => $requirement,
-            'remaining' => $remaining,
-            'percentage' => min(100, $percentage),
+            'required_wagered' => $requirement,
+            'progress_percentage' => min(100, $percentage),
         ];
     }
 
@@ -199,21 +208,37 @@ class VipService
      */
     public function getAllLevels(): array
     {
-        return VipLevel::orderBy('level', 'asc')
-            ->get()
-            ->map(function ($level) {
-                return [
-                    'id' => $level->id,
-                    'level' => $level->level,
-                    'name' => $level->name,
-                    'min_wager_requirement' => $level->min_wager_requirement,
-                    'daily_withdraw_limit' => $level->daily_withdraw_limit,
-                    'cashback_percentage' => $level->cashback_percentage,
-                    'rakeback_percentage' => $level->rakeback_percentage,
-                    'wagering_requirement_multiplier' => $level->wagering_requirement_multiplier,
-                ];
-            })
-            ->toArray();
+        return VipLevel::orderBy('level', 'asc')->get()->all();
+    }
+
+    /**
+     * Calculate cashback amount for user's losses
+     */
+    public function calculateCashback(User $user, float $lossAmount): float
+    {
+        $vipLevel = $user->vipLevel;
+        
+        if (!$vipLevel || !$vipLevel->cashback_percentage) {
+            return 0;
+        }
+        
+        return $lossAmount * ($vipLevel->cashback_percentage / 100);
+    }
+
+    /**
+     * Apply VIP wagering multiplier to reduce wagering requirements
+     */
+    public function applyWageringMultiplier(User $user, float $baseWagering): float
+    {
+        $vipLevel = $user->vipLevel;
+        
+        if (!$vipLevel || !$vipLevel->wagering_reduction) {
+            return $baseWagering;
+        }
+        
+        // Apply reduction (e.g., 0.9 for 10% reduction)
+        $multiplier = 1 - ($vipLevel->wagering_reduction / 100);
+        return $baseWagering * $multiplier;
     }
 
     /**

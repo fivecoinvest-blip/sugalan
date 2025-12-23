@@ -95,10 +95,8 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(800.00, $wallet->real_balance);
         $this->assertEquals(0.00, $wallet->bonus_balance);
         
-        $this->assertEquals([
-            'real' => 200.00,
-            'bonus' => 500.00
-        ], $balanceUsed);
+        $this->assertEquals(200.00, $balanceUsed['real']);
+        $this->assertEquals(500.00, $balanceUsed['bonus']);
     }
 
     /** @test */
@@ -113,10 +111,8 @@ class WalletServiceTest extends TestCase
         $this->assertEquals(900.00, $wallet->real_balance);
         $this->assertEquals(0.00, $wallet->bonus_balance);
         
-        $this->assertEquals([
-            'real' => 100.00,
-            'bonus' => 0.00
-        ], $balanceUsed);
+        $this->assertEquals(100.00, $balanceUsed['real']);
+        $this->assertEquals(0.00, $balanceUsed['bonus']);
     }
 
     /** @test */

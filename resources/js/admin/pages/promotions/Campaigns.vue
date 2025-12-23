@@ -427,7 +427,7 @@ const loadCampaigns = async () => {
     if (filters.search) params.append('search', filters.search);
 
     const response = await axios.get(`/api/admin/promotions/campaigns?${params.toString()}`);
-    campaigns.value = response.data.data;
+    campaigns.value = response.data.campaigns || [];
   } catch (error) {
     console.error('Failed to load campaigns:', error);
     alert('Failed to load campaigns');
@@ -439,7 +439,7 @@ const loadCampaigns = async () => {
 const loadStats = async () => {
   try {
     const response = await axios.get('/api/admin/promotions/campaigns');
-    const allCampaigns = response.data.data;
+    const allCampaigns = response.data.campaigns || [];
     
     stats.value = {
       total_campaigns: allCampaigns.length,
