@@ -19,6 +19,11 @@ import Campaigns from '../pages/promotions/Campaigns.vue';
 import GameStats from '../pages/games/Stats.vue';
 import Reports from '../pages/reports/Index.vue';
 
+// Slot Management Pages
+import SlotProviders from '../../pages/admin/slots/Providers.vue';
+import SlotGames from '../../pages/admin/slots/Games.vue';
+import SlotStatistics from '../../pages/admin/slots/Statistics.vue';
+
 const routes = [
   {
     path: '/admin',
@@ -80,6 +85,21 @@ const routes = [
         path: 'games',
         name: 'admin.games',
         component: GameStats,
+      },
+      {
+        path: 'slots/providers',
+        name: 'admin.slots.providers',
+        component: SlotProviders,
+      },
+      {
+        path: 'slots/games',
+        name: 'admin.slots.games',
+        component: SlotGames,
+      },
+      {
+        path: 'slots/statistics',
+        name: 'admin.slots.statistics',
+        component: SlotStatistics,
       },
       {
         path: 'reports',

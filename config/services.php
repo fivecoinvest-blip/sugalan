@@ -45,4 +45,11 @@ return [
         'bot_username' => env('TELEGRAM_BOT_USERNAME'),
     ],
 
+    'softapi' => [
+        'token' => env('SOFTAPI_TOKEN'),
+        'secret' => env('SOFTAPI_SECRET'),
+        'base_url' => env('SOFTAPI_BASE_URL', 'https://igamingapis.live/api/v1'),
+        'encryption_enabled' => env('SOFTAPI_ENCRYPTION', true),
+    ],
+
 ];

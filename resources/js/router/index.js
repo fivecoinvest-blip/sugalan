@@ -30,6 +30,9 @@ import WheelGame from '../pages/games/Wheel.vue';
 import CrashGame from '../pages/games/Crash.vue';
 import PumpGame from '../pages/games/Pump.vue';
 
+// Slot Games
+import Slots from '../pages/Slots.vue';
+
 const routes = [
   {
     path: '/',
@@ -44,6 +47,12 @@ const routes = [
         path: 'games',
         name: 'games',
         component: Games,
+      },
+      {
+        path: 'slots',
+        name: 'slots',
+        component: Slots,
+        meta: { requiresAuth: true },
       },
       {
         path: 'dashboard',
