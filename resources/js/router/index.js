@@ -8,6 +8,7 @@ import GameLayout from '../layouts/GameLayout.vue';
 // Pages
 import Home from '../pages/Home.vue';
 import Games from '../pages/Games.vue';
+import Slots from '../pages/Slots.vue';
 import Dashboard from '../pages/Dashboard.vue';
 import Wallet from '../pages/Wallet.vue';
 import Deposit from '../pages/Deposit.vue';
@@ -29,9 +30,6 @@ import KenoGame from '../pages/games/Keno.vue';
 import WheelGame from '../pages/games/Wheel.vue';
 import CrashGame from '../pages/games/Crash.vue';
 import PumpGame from '../pages/games/Pump.vue';
-
-// Slot Games
-import Slots from '../pages/Slots.vue';
 
 const routes = [
   {
@@ -186,9 +184,12 @@ router.beforeEach(async (to, from, next) => {
   }
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Show login modal instead of redirecting
+    // Store the intended route for redirect after login
+    sessionStorage.setItem('intendedRoute', to.fullPath);
+    
+    // Show login modal and stay on current page
     authStore.showLoginModal = true;
-    next('/');
+    next(false); // Cancel navigation
   } else {
     next();
   }

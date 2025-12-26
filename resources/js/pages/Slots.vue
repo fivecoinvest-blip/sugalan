@@ -1,377 +1,957 @@
 <template>
-  <div class="min-h-screen bg-gray-900 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="slots-page">
+    <div class="container">
       <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-4xl font-bold text-white mb-2">🎰 Slot Games</h1>
-        <p class="text-gray-400">Play exciting slot games from top providers</p>
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">🎰 Slot Games</h1>
+          <p class="page-subtitle">Play slots from top providers with seamless wallet integration</p>
+        </div>
+        <div class="search-bar">
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            placeholder="Search slots..."
+            class="search-input"
+            @input="handleSearch"
+          />
+        </div>
       </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" class="text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-        <p class="text-gray-400 mt-4">Loading games...</p>
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="error" class="bg-red-900/20 border border-red-500 rounded-lg p-6 text-center">
-        <p class="text-red-400">{{ error }}</p>
-        <button @click="loadInitialData" class="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white">
-          Try Again
+      <!-- Providers Filter -->
+      <div class="filters">
+        <button 
+          @click="selectedProvider = null"
+          class="filter-btn"
+          :class="{ active: selectedProvider === null }"
+        >
+          🎰 All Providers
+        </button>
+        <button 
+          v-for="provider in providers" 
+          :key="provider.code"
+          @click="selectedProvider = provider.code"
+          class="filter-btn"
+          :class="{ active: selectedProvider === provider.code }"
+        >
+          {{ provider.name }}
         </button>
       </div>
 
-      <!-- Main Content -->
-      <div v-else>
-        <!-- Provider Tabs -->
-        <div class="mb-8 overflow-x-auto">
-          <div class="flex space-x-2 min-w-max pb-4">
-            <button
-              @click="selectedProvider = null"
-              :class="[
-                'px-6 py-3 rounded-lg font-medium transition-all',
-                selectedProvider === null
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              ]"
-            >
-              All Games ({{ totalGames }})
-            </button>
-            <button
-              v-for="provider in providers"
-              :key="provider.id"
-              @click="selectedProvider = provider.id"
-              :class="[
-                'px-6 py-3 rounded-lg font-medium transition-all flex items-center space-x-2',
-                selectedProvider === provider.id
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              ]"
-            >
-              <img v-if="provider.logo_url" :src="provider.logo_url" :alt="provider.name" class="h-6 w-6 rounded" />
-              <span>{{ provider.name }} ({{ provider.games_count }})</span>
-            </button>
+      <!-- Categories Filter -->
+      <div class="filters secondary">
+        <button 
+          @click="selectedCategory = null"
+          class="filter-btn small"
+          :class="{ active: selectedCategory === null }"
+        >
+          All Categories
+        </button>
+        <button 
+          v-for="category in categories" 
+          :key="category"
+          @click="selectedCategory = category"
+          class="filter-btn small"
+          :class="{ active: selectedCategory === category }"
+        >
+          {{ category }}
+        </button>
+      </div>
+
+      <!-- Popular Games -->
+      <div v-if="!searchQuery && !selectedProvider && !selectedCategory" class="popular-section">
+        <h2 class="section-title">🔥 Popular Games</h2>
+        <div class="games-grid">
+          <div 
+            v-for="game in popularGames" 
+            :key="game.id"
+            @click="launchGame(game)"
+            class="game-card"
+          >
+            <div class="game-card-inner">
+              <img 
+                v-if="game.thumbnail_url" 
+                :src="game.thumbnail_url" 
+                :alt="game.name"
+                class="game-thumbnail"
+              />
+              <div v-else class="game-placeholder">🎰</div>
+              
+              <div class="game-info">
+                <h3 class="game-name">{{ game.name }}</h3>
+                <div class="game-badges">
+                  <span v-if="game.manufacturer" class="manufacturer-badge">{{ game.manufacturer }}</span>
+                  <span class="provider-badge-small">{{ game.provider_name }}</span>
+                </div>
+                
+                <div class="game-meta">
+                  <span class="meta-item">
+                    <span class="meta-label">RTP:</span>
+                    <span class="meta-value">{{ game.rtp }}%</span>
+                  </span>
+                  <span class="meta-item">
+                    <span class="meta-label">Max Win:</span>
+                    <span class="meta-value">{{ game.max_bet }}x</span>
+                  </span>
+                </div>
+                
+                <div v-if="game.category" class="game-category">
+                  {{ game.category }}
+                </div>
+              </div>
+
+              <div class="play-overlay">
+                <span class="play-btn">▶ Play Now</span>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <!-- Filters and Search -->
-        <div class="mb-6 grid grid-cols-1 md:grid-cols-12 gap-4">
-          <!-- Search -->
-          <div class="md:col-span-5">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search games..."
-              class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-            />
-          </div>
-
-          <!-- Category Filter -->
-          <div class="md:col-span-3">
-            <select
-              v-model="selectedCategory"
-              class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
-            >
-              <option value="">All Categories</option>
-              <option value="slots">Slots</option>
-              <option value="table">Table Games</option>
-              <option value="fishing">Fishing</option>
-              <option value="arcade">Arcade</option>
-            </select>
-          </div>
-
-          <!-- Sort -->
-          <div class="md:col-span-2">
-            <select
-              v-model="sortBy"
-              class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
-            >
-              <option value="popular">Popular</option>
-              <option value="new">New</option>
-              <option value="name">Name</option>
-            </select>
-          </div>
-
-          <!-- Filters Toggle -->
-          <div class="md:col-span-2">
-            <button
-              @click="showFilters = !showFilters"
-              class="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-gray-700 transition-colors"
-            >
-              Filters {{ showFilters ? '▲' : '▼' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Extended Filters -->
-        <div v-show="showFilters" class="mb-6 bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <label class="flex items-center space-x-2 text-white cursor-pointer">
-              <input v-model="showFeatured" type="checkbox" class="rounded bg-gray-700 border-gray-600 text-purple-600" />
-              <span>Featured Games</span>
-            </label>
-            <label class="flex items-center space-x-2 text-white cursor-pointer">
-              <input v-model="showNew" type="checkbox" class="rounded bg-gray-700 border-gray-600 text-purple-600" />
-              <span>New Games</span>
-            </label>
-          </div>
+      <!-- All Games -->
+      <div class="all-games-section">
+        <h2 class="section-title">
+          {{ getSectionTitle() }}
+        </h2>
+        
+        <!-- Loading State -->
+        <div v-if="loading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading games...</p>
         </div>
 
         <!-- Games Grid -->
-        <div v-if="filteredGames.length > 0" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          <div
-            v-for="game in filteredGames"
+        <div v-else-if="filteredGames.length > 0" class="games-grid">
+          <div 
+            v-for="game in filteredGames" 
             :key="game.id"
-            class="bg-gray-800 rounded-lg overflow-hidden hover:ring-2 hover:ring-purple-500 transition-all cursor-pointer group"
             @click="launchGame(game)"
+            class="game-card"
           >
-            <!-- Game Thumbnail -->
-            <div class="relative aspect-square overflow-hidden bg-gray-900">
-              <img
-                :src="game.thumbnail_url || '/images/game-placeholder.png'"
+            <div class="game-card-inner">
+              <img 
+                v-if="game.thumbnail_url" 
+                :src="game.thumbnail_url" 
                 :alt="game.name"
-                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                class="game-thumbnail"
               />
+              <div v-else class="game-placeholder">🎰</div>
               
-              <!-- Badges -->
-              <div class="absolute top-2 left-2 flex flex-col gap-1">
-                <span v-if="game.is_featured" class="bg-yellow-500 text-black text-xs px-2 py-1 rounded font-bold">
-                  ⭐ Featured
-                </span>
-                <span v-if="game.is_new" class="bg-green-500 text-white text-xs px-2 py-1 rounded font-bold">
-                  🆕 New
-                </span>
+              <div class="game-info">
+                <h3 class="game-name">{{ game.name }}</h3>
+                <div class="game-badges">
+                  <span v-if="game.manufacturer" class="manufacturer-badge">{{ game.manufacturer }}</span>
+                  <span class="provider-badge-small">{{ game.provider_name }}</span>
+                </div>
+                
+                <div class="game-meta">
+                  <span v-if="game.rtp" class="meta-item">
+                    <span class="meta-label">RTP:</span>
+                    <span class="meta-value">{{ game.rtp }}%</span>
+                  </span>
+                  <span v-if="game.volatility" class="meta-item">
+                    <span class="meta-label">Volatility:</span>
+                    <span class="meta-value">{{ game.volatility }}</span>
+                  </span>
+                </div>
+                
+                <div v-if="game.category" class="game-category">
+                  {{ game.category }}
+                </div>
               </div>
 
-              <!-- Play Overlay -->
-              <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <button class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-bold flex items-center space-x-2">
-                  <span>▶</span>
-                  <span>Play Now</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Game Info -->
-            <div class="p-3">
-              <h3 class="text-white font-medium truncate mb-1">{{ game.name }}</h3>
-              <div class="flex items-center justify-between text-xs text-gray-400">
-                <span>{{ game.provider?.name || 'Unknown' }}</span>
-                <span v-if="game.rtp" class="bg-gray-700 px-2 py-1 rounded">RTP: {{ game.rtp }}%</span>
+              <div class="play-overlay">
+                <span class="play-btn">▶ Play Now</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- No Games Found -->
-        <div v-else class="text-center py-12">
-          <p class="text-gray-400 text-lg">No games found matching your criteria</p>
-          <button @click="clearFilters" class="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white">
-            Clear Filters
-          </button>
+        <!-- Empty State -->
+        <div v-else class="empty-state">
+          <div class="empty-icon">🎰</div>
+          <p>No games found matching your criteria</p>
+          <button @click="clearFilters" class="clear-filters-btn">Clear Filters</button>
         </div>
+      </div>
 
-        <!-- Pagination -->
-        <div v-if="totalPages > 1" class="mt-8 flex justify-center">
-          <nav class="flex space-x-2">
-            <button
-              @click="currentPage--"
-              :disabled="currentPage === 1"
-              class="px-4 py-2 bg-gray-800 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700"
-            >
-              Previous
-            </button>
-            <span class="px-4 py-2 bg-gray-800 text-white rounded-lg">
-              Page {{ currentPage }} of {{ totalPages }}
-            </span>
-            <button
-              @click="currentPage++"
-              :disabled="currentPage === totalPages"
-              class="px-4 py-2 bg-gray-800 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700"
-            >
-              Next
-            </button>
-          </nav>
+      <!-- Active Session Indicator -->
+      <div v-if="activeSession" class="active-session-bar">
+        <div class="session-info">
+          <span class="session-icon">🎮</span>
+          <span class="session-text">Playing: {{ activeSession.game_name }}</span>
+          <span class="session-balance">Balance: ₱{{ formatNumber(activeSession.final_balance) }}</span>
         </div>
+        <button @click="endSession" class="end-session-btn">End Session</button>
       </div>
     </div>
 
     <!-- Game Launch Modal -->
-    <div
-      v-if="launchingGame"
-      class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-      @click.self="closeLaunchModal"
-    >
-      <div class="bg-gray-900 rounded-lg max-w-6xl w-full h-5/6 flex flex-col">
-        <!-- Modal Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-800">
-          <h2 class="text-xl font-bold text-white">{{ launchingGame.name }}</h2>
-          <button @click="closeLaunchModal" class="text-gray-400 hover:text-white text-2xl">
-            ×
-          </button>
+    <div v-if="launchModal.show" class="modal-overlay" @click="closeLaunchModal">
+      <div class="modal-content game-modal" @click.stop>
+        <button @click="closeLaunchModal" class="modal-close">×</button>
+        
+        <div v-if="launchModal.loading" class="modal-loading">
+          <div class="spinner"></div>
+          <p>Launching game...</p>
         </div>
 
-        <!-- Game Frame -->
-        <div class="flex-1 relative">
-          <div v-if="loadingGameUrl" class="absolute inset-0 flex items-center justify-center">
-            <div class="text-center">
-              <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mb-4"></div>
-              <p class="text-white">Launching game...</p>
-            </div>
-          </div>
-          <iframe
-            v-if="gameUrl"
-            :src="gameUrl"
-            class="w-full h-full"
-            frameborder="0"
-            allowfullscreen
-          ></iframe>
+        <div v-else-if="launchModal.error" class="modal-error">
+          <div class="error-icon">⚠️</div>
+          <p class="error-message">{{ launchModal.error }}</p>
+          <button @click="closeLaunchModal" class="btn-primary">Close</button>
         </div>
+
+        <iframe 
+          v-else-if="launchModal.url"
+          :src="launchModal.url"
+          class="game-iframe"
+          frameborder="0"
+          allowfullscreen
+        ></iframe>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
+import { useWalletStore } from '../stores/wallet';
 import axios from 'axios';
 
 const authStore = useAuthStore();
+const walletStore = useWalletStore();
+
+// Create API instance
+const api = axios.create({
+  baseURL: '/api',
+});
+
+// Add auth token to requests
+api.interceptors.request.use((config) => {
+  if (authStore.token) {
+    config.headers.Authorization = `Bearer ${authStore.token}`;
+  }
+  return config;
+});
 
 // State
-const loading = ref(false);
-const error = ref('');
 const providers = ref([]);
-const games = ref([]);
-const selectedProvider = ref(null);
-const selectedCategory = ref('');
+const categories = ref([]);
+const popularGames = ref([]);
+const allGames = ref([]);
+const activeSession = ref(null);
+const loading = ref(false);
 const searchQuery = ref('');
-const sortBy = ref('popular');
-const showFilters = ref(false);
-const showFeatured = ref(false);
-const showNew = ref(false);
-const currentPage = ref(1);
-const totalPages = ref(1);
-const totalGames = ref(0);
-
-// Game Launch
-const launchingGame = ref(null);
-const loadingGameUrl = ref(false);
-const gameUrl = ref('');
+const selectedProvider = ref(null);
+const selectedCategory = ref(null);
+const launchModal = ref({
+  show: false,
+  url: null,
+  loading: false,
+  error: null,
+  game: null,
+});
 
 // Computed
 const filteredGames = computed(() => {
-  let filtered = [...games.value];
+  let games = allGames.value;
 
-  // Apply filters
   if (selectedProvider.value) {
-    filtered = filtered.filter(g => g.provider_id === selectedProvider.value);
+    games = games.filter(g => g.provider_code === selectedProvider.value);
   }
 
   if (selectedCategory.value) {
-    filtered = filtered.filter(g => g.category === selectedCategory.value);
-  }
-
-  if (showFeatured.value) {
-    filtered = filtered.filter(g => g.is_featured);
-  }
-
-  if (showNew.value) {
-    filtered = filtered.filter(g => g.is_new);
+    games = games.filter(g => g.category === selectedCategory.value);
   }
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(g => 
-      g.name.toLowerCase().includes(query) ||
-      g.name_en?.toLowerCase().includes(query)
+    games = games.filter(g => 
+      (g.name || '').toLowerCase().includes(query) ||
+      (g.provider_name || g.provider?.name || '').toLowerCase().includes(query)
     );
   }
 
-  // Sort
-  if (sortBy.value === 'name') {
-    filtered.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (sortBy.value === 'new') {
-    filtered.sort((a, b) => b.is_new - a.is_new);
-  }
-
-  return filtered;
+  return games;
 });
 
 // Methods
-const loadInitialData = async () => {
-  loading.value = true;
-  error.value = '';
-
+const fetchProviders = async () => {
   try {
-    // Load providers and games in parallel
-    const [providersRes, gamesRes] = await Promise.all([
-      axios.get('/api/slots/providers'),
-      axios.get('/api/slots/games', {
-        params: {
-          page: currentPage.value,
-          per_page: 50
-        }
-      })
-    ]);
+    const response = await api.get('/slots/providers');
+    providers.value = response.data.data || [];
+  } catch (error) {
+    console.error('Failed to fetch providers:', error);
+  }
+};
 
-    providers.value = providersRes.data.data;
-    games.value = gamesRes.data.data;
-    totalPages.value = gamesRes.data.meta.last_page;
-    totalGames.value = gamesRes.data.meta.total;
-  } catch (err) {
-    console.error('Error loading slot games:', err);
-    error.value = err.response?.data?.message || 'Failed to load games. Please try again.';
+const fetchCategories = async () => {
+  try {
+    const params = {};
+    if (selectedProvider.value) {
+      params.provider = selectedProvider.value;
+    }
+    const response = await api.get('/slots/games/categories', { params });
+    categories.value = response.data.data || [];
+  } catch (error) {
+    console.error('Failed to fetch categories:', error);
+  }
+};
+
+const fetchPopularGames = async () => {
+  try {
+    const response = await api.get('/slots/games/popular', {
+      params: { limit: 12 }
+    });
+    popularGames.value = response.data.data || [];
+  } catch (error) {
+    console.error('Failed to fetch popular games:', error);
+  }
+};
+
+const fetchGames = async () => {
+  loading.value = true;
+  try {
+    const params = {};
+    if (selectedProvider.value) {
+      params.provider = selectedProvider.value;
+    }
+    if (selectedCategory.value) {
+      params.category = selectedCategory.value;
+    }
+    const response = await api.get('/slots/games', { params });
+    allGames.value = response.data.data || [];
+  } catch (error) {
+    console.error('Failed to fetch games:', error);
   } finally {
     loading.value = false;
   }
 };
 
+const handleSearch = async () => {
+  if (searchQuery.value.length < 3 && searchQuery.value.length > 0) {
+    return; // Wait for at least 3 characters
+  }
+
+  if (searchQuery.value.length >= 3) {
+    loading.value = true;
+    try {
+      const response = await api.get('/slots/games/search', {
+        params: { q: searchQuery.value }
+      });
+      allGames.value = response.data.data || [];
+    } catch (error) {
+      console.error('Failed to search games:', error);
+    } finally {
+      loading.value = false;
+    }
+  } else {
+    // Reset to all games
+    await fetchGames();
+  }
+};
+
 const launchGame = async (game) => {
-  launchingGame.value = game;
-  loadingGameUrl.value = true;
-  gameUrl.value = '';
+  if (!authStore.isAuthenticated) {
+    authStore.showLoginModal = true;
+    return;
+  }
+
+  launchModal.value = {
+    show: true,
+    url: null,
+    loading: true,
+    error: null,
+    game: game,
+  };
 
   try {
-    const response = await axios.post(`/api/slots/games/${game.id}/launch`, {
-      mode: 'real', // or 'demo' for free play
-      return_url: window.location.href
+    const response = await api.post(`/slots/games/${game.id}/launch`, {
+      demo_mode: false,
     });
 
-    gameUrl.value = response.data.data.game_url;
-  } catch (err) {
-    console.error('Error launching game:', err);
-    const message = err.response?.data?.message || 'Failed to launch game';
-    alert(message);
-    closeLaunchModal();
-  } finally {
-    loadingGameUrl.value = false;
+    launchModal.value.loading = false;
+    launchModal.value.url = response.data.data.game_url;
+    
+    // Update active session
+    activeSession.value = {
+      id: response.data.data.session_id,
+      game_name: game.name,
+      expires_at: response.data.data.expires_at,
+    };
+    
+    // Refresh wallet balance
+    await walletStore.fetchBalance();
+  } catch (error) {
+    launchModal.value.loading = false;
+    launchModal.value.error = error.response?.data?.message || 'Failed to launch game. Please try again.';
+    console.error('Failed to launch game:', error);
   }
 };
 
 const closeLaunchModal = () => {
-  launchingGame.value = null;
-  gameUrl.value = '';
-  loadingGameUrl.value = false;
+  launchModal.value = {
+    show: false,
+    url: null,
+    loading: false,
+    error: null,
+    game: null,
+  };
+};
+
+const endSession = async () => {
+  if (!activeSession.value) return;
+
+  try {
+    await api.post('/slots/session/end');
+    activeSession.value = null;
+    closeLaunchModal();
+    
+    // Refresh wallet balance
+    await walletStore.fetchBalance();
+  } catch (error) {
+    console.error('Failed to end session:', error);
+  }
+};
+
+const checkActiveSession = async () => {
+  try {
+    const response = await api.get('/slots/session/active');
+    if (response.data.data) {
+      activeSession.value = response.data.data;
+    }
+  } catch (error) {
+    // No active session or error - ignore
+  }
+};
+
+const getSectionTitle = () => {
+  if (searchQuery.value) {
+    return `Search Results for "${searchQuery.value}"`;
+  }
+  if (selectedProvider.value) {
+    const provider = providers.value.find(p => p.code === selectedProvider.value);
+    return provider ? `${provider.name} Games` : 'All Games';
+  }
+  if (selectedCategory.value) {
+    return `${selectedCategory.value} Games`;
+  }
+  return 'All Games';
 };
 
 const clearFilters = () => {
-  selectedProvider.value = null;
-  selectedCategory.value = '';
   searchQuery.value = '';
-  showFeatured.value = false;
-  showNew.value = false;
-  sortBy.value = 'popular';
+  selectedProvider.value = null;
+  selectedCategory.value = null;
+  fetchGames();
 };
 
-// Watchers
-watch([selectedProvider, selectedCategory, showFeatured, showNew], () => {
-  currentPage.value = 1;
-});
+const formatNumber = (num) => {
+  return parseFloat(num).toFixed(2);
+};
 
 // Lifecycle
-onMounted(() => {
-  loadInitialData();
+onMounted(async () => {
+  await fetchProviders();
+  await fetchCategories();
+  await fetchPopularGames();
+  await fetchGames();
+  
+  if (authStore.isAuthenticated) {
+    await checkActiveSession();
+  }
 });
 </script>
+
+<style scoped>
+.slots-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem 0;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.page-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.page-subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0.5rem 0 0;
+}
+
+.search-bar {
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.filters.secondary {
+  margin-top: -0.5rem;
+}
+
+.filter-btn {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-btn.small {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.filter-btn.active {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: #fff;
+}
+
+.popular-section,
+.all-games-section {
+  margin-bottom: 3rem;
+}
+
+.section-title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 1.5rem;
+}
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.game-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.game-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.game-card-inner {
+  position: relative;
+  overflow: hidden;
+}
+
+.game-thumbnail {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  display: block;
+}
+
+.game-placeholder {
+  width: 100%;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  font-size: 4rem;
+}
+
+.game-info {
+  padding: 1rem;
+}
+
+.game-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 0.5rem;
+}
+
+.game-badges {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.manufacturer-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: rgba(167, 139, 250, 0.3);
+  border: 1px solid rgba(167, 139, 250, 0.5);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: #c4b5fd;
+  font-weight: 600;
+}
+
+.provider-badge-small {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: rgba(96, 165, 250, 0.3);
+  border: 1px solid rgba(96, 165, 250, 0.5);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.game-provider {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 0.75rem;
+}
+
+.game-meta {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.meta-item {
+  display: flex;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.meta-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.meta-value {
+  color: #fff;
+  font-weight: 600;
+}
+
+.game-category {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: #fff;
+  margin-top: 0.5rem;
+}
+
+.play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(102, 126, 234, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.game-card:hover .play-overlay {
+  opacity: 1;
+}
+
+.play-btn {
+  padding: 0.75rem 2rem;
+  background: #fff;
+  color: #667eea;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 3rem;
+  color: #fff;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 1rem;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #fff;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.clear-filters-btn {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.clear-filters-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: #fff;
+}
+
+.active-session-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(30, 30, 30, 0.95);
+  border-top: 2px solid #667eea;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 999;
+}
+
+.session-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #fff;
+}
+
+.session-icon {
+  font-size: 1.5rem;
+}
+
+.session-text {
+  font-weight: 600;
+}
+
+.session-balance {
+  color: #4ade80;
+}
+
+.end-session-btn {
+  padding: 0.5rem 1.5rem;
+  background: #ef4444;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.end-session-btn:hover {
+  background: #dc2626;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: #1e1e1e;
+  border-radius: 12px;
+  max-width: 100%;
+  max-height: 100%;
+  position: relative;
+}
+
+.modal-content.game-modal {
+  width: 95vw;
+  height: 90vh;
+  max-width: 1400px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #fff;
+}
+
+.modal-loading,
+.modal-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #fff;
+  padding: 2rem;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.btn-primary {
+  padding: 0.75rem 2rem;
+  background: #667eea;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: #5568d3;
+}
+
+.game-iframe {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-bar {
+    max-width: 100%;
+  }
+
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .games-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .active-session-bar {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .session-info {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .modal-content.game-modal {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+}
+</style>

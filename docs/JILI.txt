@@ -1,0 +1,134 @@
+2	Chin Shi Huang	24da72b49b0dd0e5cbef9579d09d8981	Slot
+4	God Of Martial	21ef8a7ddd39836979170a2e7584e333	Slot
+5	Hot Chilli	c845960c81d27d7880a636424e53964d	Slot
+6	Fortune Tree	6a7e156ceec5c581cd6b9251854fe504	Slot
+9	War Of Dragons	4b1d7ffaf9f66e6152ea93a6d0e4215b	Slot
+不对外	Gem Party	756cf3c73a323b4bfec8d14864e3fada	Slot
+13	Lucky Ball	893669898cd25d9da589a384f1d004df	Slot
+14	Hyper Burst	a47b17970036b37c1347484cf6956920	Slot
+17	Shanghai Beauty	795d0cae623cbf34d7f1aa93bbcded28	Slot
+21	Fa Fa Fa	54c41adcf43fdb6d385e38bc09cd77ca	Slot
+23	Candy Baby	2cc3b68cbcfacac2f7ef2fe19abc3c22	Slot
+26	Hawaii Beauty	6409b758471b6df30c6b137b49f4d92e	Slot
+27	SevenSevenSeven	61d46add6841aad4758288d68015eca6	Slot
+30	Bubble Beauty	a78d2ed972aab8ba06181cc43c54a425	Slot
+33	FortunePig	8488c76ee2afb8077fbd7eec62721215	Slot
+35	Crazy777	8c62471fd4e28c084a61811a3958f7a1	Slot
+36	Bao boon chin	8c4ebb3dc5dcf7b7fe6a26d5aadd2c3d	Slot
+37	Night City	78e29705f7c6084114f46a0aeeea1372	Slot
+38	Fengshen	09699fd0de13edbb6c4a194d7494640b	Slot
+40	Crazy FaFaFa	a57a8d5176b54d4c825bd1eee8ab34df	Slot
+43	XiYangYang	5a962d0e31e0d4c0798db5f331327e4f	Slot
+44	DiamondParty	48d598e922e8c60643218ccda302af08	Slot
+45	Golden Bank	c3f86b78938eab1b7f34159d98796e88	Slot
+46	Dragon Treasure	c6955c14f6c28a6c2a0c28274fec7520	Slot
+47	Charge Buffalo	984615c9385c42b3dad0db4a9ef89070	Slot
+48	Lucky Goldbricks	d84ef530121953240116e3b2e93f6af4	Slot
+49	Super Ace	bdfb23c974a2517198c5443adeea77a8	Slot
+51	Money Coming	db249defce63610fccabfa829a405232	Slot
+58	Golden Queen	8de99455c2f23f6827666fd798eb80ef	Slot
+16	Jungle King	4db0ec24ff55a685573c888efed47d7f	Slot
+不对外	Monkey Party	fd369a4a7486ff303beea267ec5c8eff	Slot
+77	Boxing King	981f5f9675002fbeaaf24c4128b938d7	Slot
+78	Secret Treasure	1d1f267e3a078ade8e5ccd56582ac94f	Slot
+85	Pharaoh Treasure	c7a69ab382bd1ff0e6eb65b90a793bdd	Slot
+91	Lucky Coming	ba858ec8e3b5e2b4da0d16b3a2330ca7	Slot
+100	Super Rich	b92f491a63ac84b106b056e9d46d35c5	Slot
+102	Roma X	e5ff8e72418fcc608d72ea21cc65fb70	Slot
+103	Golden Empire	490096198e28f770a3f85adb6ee49e0f	Slot
+109	Fortune Gems	a990de177577a2e6a889aaac5f57b429	Slot
+92	Crazy Hunter	69082f28fcd46cbfd10ce7a0051f24b6	Slot
+76	Party Night	d505541d522aa5ca01fc5e97cfcf2116	Slot
+108	Magic Lamp	582a58791928760c28ec4cef3392a49f	Slot
+115	Agent Ace	8a4b4929e796fda657a2d38264346509	Slot
+106	TWIN WINS	c74b3cbda5d16f77523e41c25104e602	Slot
+110	Ali Baba	cc686634b4f953754b306317799f1f39	Slot
+134	Mega Ace	eba92b1d3abd5f0d37dfbe112abdf0e2	Slot
+101	Medusa	2c17b7c4e2ce5b8bebf4bd10e3e958d7	Slot
+87	Book of Gold	6b283c434fd44250d83b7c2420f164f9	Slot
+130	Thor X	7e6aa773fa802aaa9cb1f2fac464736e	Slot
+116	Happy Taxi	1ed896aae4bdc78c984021307b1dd177	Slot
+137	Gold Rush	2a5d731e0fd60f52873a24ece11f2c0b	Slot
+135	Mayan Empire	5c2383ef253f9c36dacec4b463d61622	Slot
+153	Crazy Pusher	00d92d5cec10cf85623938222a6c2bb6	Slot
+126	Bone Fortune	aab3048abc6a88e0759679fbe26e6a8d	Slot
+144	JILI CAISHEN	11e330c2b23f106815f3b726d04e4316	Slot
+142	Bonus Hunter	39775cdc4170e56c5f768bdee8b4fa00	Slot
+146	World Cup	28374b7ad7c91838a46404f1df046e5a	Slot
+136	Samba	6d35789b2f419c1db3926350d57c58d8	Slot
+145	Neko Fortune	9a391758f755cb30ff973e08b2df6089	Slot
+166	Wild Racer	2f0c5f96cda3c6e16b3929dd6103df8e	Slot
+164	Pirate Queen	70999d5bcf2a1d1f1fb8c82e357317f4	Slot
+183	Golden Joker	f301fe0b22d1540b1f215d282b20c642	Slot
+181	Wild Ace	9a3b65e2ae5343df349356d548f3fc4b	Slot
+176	Master Tiger	d2b48fe98ac2956eeefd2bc4f7e0335a	Slot
+223	Fortune Gems 2	664fba4da609ee82b78820b1f570f4ad	Slot
+198	Sweet Land	91250a55f75a3c67ed134b99bf587225	Slot
+225	Cricket King 18	dcf220f4e3ecca0278911a55e6f11c77	Slot
+172	Elf Bingo	5cec2b309a8845b38f8e9b4e6d649ea2	Slot
+230	Cricket Sah 75	6720a0ce1d06648ff390fbea832798a9	Slot
+191	Golden Temple	976c5497256c020ac012005f6bb166ad	Slot
+193	Devil Fire	1b4c5865131b4967513c1ee90cba4472	Slot
+238	Bangla Beauty	6b60d159f0939a45f7b4c88a9b57499a	Slot
+209	Aztec Priestess	6acff19b2d911a8c695ba24371964807	Slot
+303	Fortune Monkey	add95fc40f1ef0d56f5716ce45a56946	Slot
+239	Dabanggg	5404a45b06826911c3537fdf935c281f	Slot
+171	Sin City	830cac2f5da6cc1fb91cfae04b85b1e2	Slot
+214	King Arthur	fafab1a17a237d0fc0e50c20d2c2bf4c	Slot
+259	Charge Buffalo Ascent	28bc4a33c985ddce6acd92422626b76f	Slot
+226	Witches Night	82c5c404cf4c0790deb42a2b5653533c	Slot
+300	Fortune Gems 3	63927e939636f45e9d6d0b3717b3b1c1	Slot
+403	Super Ace Deluxe	80aad2a10ae6a95068b50160d6c78897	Slot
+399	3 Coin Treasures	69c1b4586b5060eefcb45bb479f03437	Slot
+400	3 Lucky Piggy	e09d4c9612ea540bc0afabf76e4f9148	Slot
+375	Poseidon	50a1bcbc2ef4a5f761e0e4d338a41699	Slot
+372	3 Pot Dragons	921dce2d616e5d0577135bb2d9214946	Slot
+379	Money Pot	a5acbbb7ae534d303f67cb447dc8723d	Slot
+324	Nightfall Hunting	ced5e3de03293fc6fb111298a504cfeb	Slot
+376	Shōgun	68724804a3cd30c749e460256b462f00	Slot
+258	Devil Fire 2	0426ba674c9dd29de6fa023afcf0640d	Slot
+180	Legacy of Egypt	1310248a5eab24b4bf113a6e0ee7962a	Slot
+421	Lucky Jaguar	731e642b1fee94725e7313f3dfba8f45	Slot
+301	Jackpot Joker	7ed860eef313538545ff7aa2b9290cf9	Slot
+228	Arena Fighter	71468f38b1fa17379231d50635990c31	Slot
+208	Trial of Phoenix	d11ea63b63ec615ae6df589f0b0d53e1	Slot
+252	Zeus	4e7c9f4fbe9b5137f21ebd485a9cfa5c	Slot
+299	Potion Wizard	fba154365cdf8fad07565cf93bae3521	Slot
+263	The Pig House	824736d3e6abff8a0b7e79d784c7b113	Slot
+302	Money Coming Expand Bets	3a557646c3abb12201c0b8810a8c0966	Slot
+240	Party Star	bfde2986a4eb3a5a559ac8a8c64df461	Slot
+264	Egypt's Glow	ddac017cb273a590b7aa0e1ad6a52bef	Slot
+374	Lucky Doggy	4bf1d6a75d91c725f89aa5985544a087	Slot
+378	Golden Bank 2	3a72a27c8851be5a396f51a19654c7c3	Slot
+422	Fruity Wheel	921cf987632d65b5e41ab5dffe16d95a	Slot
+377	Safari Mystery	56dad0ca19e96dc6ee1038d374712767	Slot
+307	Treasure Quest	6bb74b0a57a66850b79ab5c93864cac3	Slot
+392	Coin Tree	ca72a7ad1ca4fa2cdc9a1c49c8bb3332	Slot
+485	3 Coin Wild Horse	25bff08b69ccd31c238a627b53afff36	Slot
+409	Super Ace Joker	29c66f73e3916b8eb18c2bf78886927d	Slot
+461	Pirate Queen 2	4702eb871271aa62ef3f3d78f5d968c1	Slot
+458	Coin Infinity Surge Reel	a1ea10a6b30f260b6d6ff17028d38913	slot
+394	Sweet Magic	ae88afcb58415b7802e2c02c40816f17	Slot
+460	3 Charge Buffalo	3ea8ed5f8ba2239e6cd49366afb743f8	Slot
+467	3 Rich pigies	472f684f667e272e0ccc7ac1529170ca	slot
+517	Roma X Deluxe	b4fe8cea772a7643551a12de806472e8	Slot
+463	3 LUCKY LION	7af6be9d29bb593fa0f6516b14b02103	Slot
+423	Bikini Lady	702565a827764d10e470a0f76398a978	slot
+523	Fortune Coins	d6d14943efe13dd3bcf1428d0f702024	slot
+472	3 Coin Treasures 2	7b4308e95fa25021bae874f9e128c8c3	Slot
+424	Golden Empire 2	8cbb88bc0bc1f7be4379cf75abc6095f	Slot
+542	Super Ace II	083a2fbb35612d3f7925acedece5904f	Slot
+543	Money Coming 2	b4a3e54cabeecd94ebbd1cc217a5b069	Slot
+518	Circus Joker 4096	1ab23c1fda76ec10778b458fac552e37	Slot
+504	Crazy777 2	c7a3c072d2330f0eb602ccc6016cff4b	Slot
+447	Crystal 777 DELUXE	ee14a5ddeadf31a98419bd20cc88da85	Slot
+448	Rapid Gems 777	ea2fe9a169ff7b23a58ceb35ac33c52e	Slot
+605	Jackpot Joker FEVER	397a27f0042be1a6f6a3e09c0ae6c057	SLot
+408	Safari King	230032b5b7eb29148358a03a3fbda3fb	Slot
+529	Joker Coins	25d960a93c7a78c6c46619acce6d032e	Slot
+583	Cash Coin	fe942e56d8f33522e4084e8e3aaa3523	Slot
+495	Boxing King Title Match	2d91fb4cdd53d47367369ad85b271500	Slot
+573	Fortune Coins 2	007f5afeab86a47d96038324438c0c1f	Slot
+667	Circus Jackpot	d95070382efcbe621f3bdb77a4ecfab8	Slot
+526	10 Sparkling Crown	2eb2879a2e4f3c5e5d297925283c37c9	Slot
+545	Clover Coins 3x3	3836fb2d7549281c8d339b2bce8c9086	Slot

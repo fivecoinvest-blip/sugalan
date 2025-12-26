@@ -17,10 +17,14 @@ use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\PromotionController as AdminPromotionController;
 use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\SlotProviderController as AdminSlotProviderController;
+use App\Http\Controllers\Admin\SlotGameController as AdminSlotGameController;
 use App\Http\Controllers\Api\VerificationController;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\ResponsibleGamingController;
 use App\Http\Controllers\CookieConsentController;
+use App\Http\Controllers\SlotGameController;
+use App\Http\Controllers\SlotCallbackController;
 
 /*
 |--------------------------------------------------------------------------
@@ -183,25 +187,6 @@ Route::middleware('auth:api')->group(function () {
         Route::post('/pump/cashout', [GameController::class, 'cashoutPump']);
         Route::get('/pump/round', [GameController::class, 'getCurrentPumpRound']);
     });
-
-    // Slot Games
-    Route::prefix('slots')->group(function () {
-        Route::get('/providers', [\App\Http\Controllers\Api\SlotGameController::class, 'getProviders']);
-        Route::get('/games', [\App\Http\Controllers\Api\SlotGameController::class, 'getAllGames']);
-        Route::get('/providers/{providerId}/games', [\App\Http\Controllers\Api\SlotGameController::class, 'getGamesByProvider']);
-        Route::get('/games/{gameId}', [\App\Http\Controllers\Api\SlotGameController::class, 'getGameDetails']);
-        Route::post('/games/{gameId}/launch', [\App\Http\Controllers\Api\SlotGameController::class, 'launchGame']);
-        Route::get('/bets/history', [\App\Http\Controllers\Api\SlotGameController::class, 'getBetHistory']);
-        Route::get('/bets/stats', [\App\Http\Controllers\Api\SlotGameController::class, 'getStats']);
-    });
-});
-
-// Slot game callbacks (no auth - provider callbacks)
-Route::prefix('callbacks/slots')->group(function () {
-    Route::post('/balance', [\App\Http\Controllers\Api\SlotCallbackController::class, 'balance']);
-    Route::post('/debit', [\App\Http\Controllers\Api\SlotCallbackController::class, 'debit']);
-    Route::post('/credit', [\App\Http\Controllers\Api\SlotCallbackController::class, 'credit']);
-    Route::post('/rollback', [\App\Http\Controllers\Api\SlotCallbackController::class, 'rollback']);
 });
 
 // Admin authentication (public)
@@ -258,29 +243,6 @@ Route::middleware(['auth:admin', 'admin'])->prefix('admin')->group(function () {
         });
     });
     
-    // Slot Game Management (requires manage_games permission)
-    Route::middleware('admin.permission:manage_games')->group(function () {
-        Route::prefix('slots')->group(function () {
-            // Providers
-            Route::get('/providers', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'getProviders']);
-            Route::post('/providers', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'saveProvider']);
-            Route::put('/providers/{id}', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'saveProvider']);
-            Route::delete('/providers/{id}', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'deleteProvider']);
-            
-            // Games
-            Route::get('/games', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'getGames']);
-            Route::post('/games', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'saveGame']);
-            Route::put('/games/{id}', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'saveGame']);
-            Route::post('/games/{id}/toggle-status', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'toggleGameStatus']);
-            Route::delete('/games/{id}', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'deleteGame']);
-            Route::post('/providers/{id}/sync', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'syncGames']);
-            
-            // Statistics
-            Route::get('/statistics', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'getStatistics']);
-            Route::get('/bets/history', [\App\Http\Controllers\Api\Admin\SlotGameManagementController::class, 'getBetHistory']);
-        });
-    });
-    
     // Analytics routes (requires view_reports permission)
     Route::middleware('admin.permission:view_reports')->group(function () {
         Route::prefix('analytics')->group(function () {
@@ -288,6 +250,24 @@ Route::middleware(['auth:admin', 'admin'])->prefix('admin')->group(function () {
             Route::get('/realtime', [AnalyticsController::class, 'realtime']);
             Route::get('/export', [AnalyticsController::class, 'export']);
         });
+    });
+    
+    // Slot Provider management
+    Route::prefix('slots')->group(function () {
+        Route::get('/providers', [AdminSlotProviderController::class, 'index']);
+        Route::post('/providers', [AdminSlotProviderController::class, 'store']);
+        Route::get('/providers/{provider}', [AdminSlotProviderController::class, 'show']);
+        Route::put('/providers/{provider}', [AdminSlotProviderController::class, 'update']);
+        Route::delete('/providers/{provider}', [AdminSlotProviderController::class, 'destroy']);
+        Route::post('/providers/{provider}/sync', [AdminSlotProviderController::class, 'syncGames']);
+        Route::get('/providers/{provider}/transactions', [AdminSlotProviderController::class, 'getTransactions']);
+        
+        // Slot Game management
+        Route::get('/games', [AdminSlotGameController::class, 'index']);
+        Route::get('/games/{game}', [AdminSlotGameController::class, 'show']);
+        Route::put('/games/{game}', [AdminSlotGameController::class, 'update']);
+        Route::delete('/games/{game}', [AdminSlotGameController::class, 'destroy']);
+        Route::post('/games/bulk', [AdminSlotGameController::class, 'bulkUpdate']);
     });
 });
 
@@ -333,4 +313,32 @@ Route::prefix('cookies')->group(function () {
     Route::delete('/consent', [CookieConsentController::class, 'clearConsent']);
 });
 
+// Slot Game Callback routes (no auth required - provider callbacks)
+Route::prefix('slots/callback/{provider}')->group(function () {
+    Route::post('/bet', [SlotCallbackController::class, 'handleBet']);
+    Route::post('/win', [SlotCallbackController::class, 'handleWin']);
+    Route::post('/rollback', [SlotCallbackController::class, 'handleRollback']);
+    Route::post('/balance', [SlotCallbackController::class, 'handleBalanceCheck']);
+});
+
+// Slot Game Player routes (requires authentication)
+Route::middleware('auth:api')->prefix('slots')->group(function () {
+    // Providers
+    Route::get('/providers', [SlotGameController::class, 'getProviders']);
+    
+    // Games
+    Route::get('/games', [SlotGameController::class, 'getGames']);
+    Route::get('/games/popular', [SlotGameController::class, 'getPopularGames']);
+    Route::get('/games/search', [SlotGameController::class, 'searchGames']);
+    Route::get('/games/categories', [SlotGameController::class, 'getCategories']);
+    Route::post('/games/{gameId}/launch', [SlotGameController::class, 'launchGame']);
+    
+    // Sessions
+    Route::get('/session/active', [SlotGameController::class, 'getActiveSession']);
+    Route::post('/session/end', [SlotGameController::class, 'endSession']);
+    Route::get('/sessions/history', [SlotGameController::class, 'getSessionHistory']);
+    
+    // Admin: Sync games
+    Route::post('/admin/sync', [SlotGameController::class, 'syncGames']);
+});
 

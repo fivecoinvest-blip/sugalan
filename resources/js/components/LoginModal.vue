@@ -89,10 +89,11 @@
 
 <script setup>
 import { ref, reactive } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
 const emit = defineEmits(['close']);
-
+const router = useRouter();
 const authStore = useAuthStore();
 const activeTab = ref('phone');
 const loading = ref(false);
@@ -119,6 +120,16 @@ async function handlePhoneLogin() {
 
   if (!result.success) {
     error.value = result.message;
+  } else {
+    // Close modal
+    emit('close');
+    
+    // Navigate to intended route if exists
+    const intendedRoute = sessionStorage.getItem('intendedRoute');
+    if (intendedRoute) {
+      sessionStorage.removeItem('intendedRoute');
+      router.push(intendedRoute);
+    }
   }
 }
 
@@ -139,6 +150,16 @@ async function handleMetaMaskLogin() {
     
     if (!result.success) {
       error.value = result.message;
+    } else {
+      // Close modal
+      emit('close');
+      
+      // Navigate to intended route if exists
+      const intendedRoute = sessionStorage.getItem('intendedRoute');
+      if (intendedRoute) {
+        sessionStorage.removeItem('intendedRoute');
+        router.push(intendedRoute);
+      }
     }
   } catch (err) {
     error.value = err.message || 'Failed to connect MetaMask';
@@ -161,6 +182,13 @@ async function handleGuestLogin() {
 
   if (result.success) {
     emit('close');
+    
+    // Navigate to intended route if exists
+    const intendedRoute = sessionStorage.getItem('intendedRoute');
+    if (intendedRoute) {
+      sessionStorage.removeItem('intendedRoute');
+      router.push(intendedRoute);
+    }
   } else {
     error.value = result.message;
   }

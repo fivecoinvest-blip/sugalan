@@ -6,55 +6,77 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * SlotGame Model
+ * 
+ * Represents a slot game in the system.
+ * 
+ * Architecture:
+ * - provider_id: References the aggregator (e.g., AYUT API)
+ * - manufacturer: The actual game provider/manufacturer (e.g., JILI, PG Soft, Pragmatic Play)
+ * - category: Game type (e.g., slots, table, crash)
+ */
 class SlotGame extends Model
 {
     protected $fillable = [
         'provider_id',
-        'game_code',
         'game_id',
         'name',
-        'name_en',
-        'thumbnail_url',
-        'banner_url',
-        'description',
         'category',
+        'manufacturer',
+        'thumbnail_url',
+        'min_bet',
+        'max_bet',
         'rtp',
         'volatility',
+        'lines',
         'is_active',
-        'is_featured',
-        'is_new',
-        'sort_order',
-        'supported_languages',
-        'supported_currencies',
         'metadata',
     ];
 
     protected $casts = [
+        'min_bet' => 'decimal:2',
+        'max_bet' => 'decimal:2',
         'rtp' => 'decimal:2',
-        'volatility' => 'integer',
+        'lines' => 'integer',
         'is_active' => 'boolean',
-        'is_featured' => 'boolean',
-        'is_new' => 'boolean',
-        'sort_order' => 'integer',
-        'supported_languages' => 'array',
-        'supported_currencies' => 'array',
         'metadata' => 'array',
     ];
 
     /**
-     * Get the provider
+     * Get the thumbnail URL with /storage/ prefix
      */
-    public function provider(): BelongsTo
+    public function getThumbnailUrlAttribute($value): ?string
     {
-        return $this->belongsTo(GameProvider::class, 'provider_id');
+        if (!$value) {
+            return null;
+        }
+
+        // If already has http(s):// or starts with /storage/, return as-is
+        if (str_starts_with($value, 'http://') || 
+            str_starts_with($value, 'https://') || 
+            str_starts_with($value, '/storage/')) {
+            return $value;
+        }
+
+        // Otherwise, prepend /storage/
+        return '/storage/' . $value;
     }
 
     /**
-     * Get the bets for this game
+     * Get the aggregator provider (e.g., AYUT)
      */
-    public function bets(): HasMany
+    public function provider(): BelongsTo
     {
-        return $this->hasMany(SlotBet::class);
+        return $this->belongsTo(SlotProvider::class, 'provider_id');
+    }
+
+    /**
+     * Get sessions for this game
+     */
+    public function sessions(): HasMany
+    {
+        return $this->hasMany(SlotSession::class, 'game_id');
     }
 
     /**
@@ -63,6 +85,14 @@ class SlotGame extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope: By manufacturer/game provider
+     */
+    public function scopeManufacturer($query, $manufacturer)
+    {
+        return $query->where('manufacturer', $manufacturer);
     }
 
     /**
@@ -87,13 +117,5 @@ class SlotGame extends Model
     public function scopeCategory($query, $category)
     {
         return $query->where('category', $category);
-    }
-
-    /**
-     * Scope: Order by sort_order
-     */
-    public function scopeOrdered($query)
-    {
-        return $query->orderBy('sort_order')->orderBy('name');
     }
 }

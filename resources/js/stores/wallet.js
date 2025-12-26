@@ -18,7 +18,8 @@ export const useWalletStore = defineStore('wallet', () => {
 
     try {
       const response = await axios.get('/api/wallet/balance');
-      balance.value = response.data;
+      // API returns { success: true, data: { real_balance, bonus_balance, locked_balance } }
+      balance.value = response.data.data || response.data;
     } catch (err) {
       error.value = err.response?.data?.message || 'Failed to fetch balance';
       console.error('Error fetching balance:', err);

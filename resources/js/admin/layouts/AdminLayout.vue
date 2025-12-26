@@ -50,21 +50,15 @@
           <span>Games</span>
         </router-link>
         
-        <div class="nav-group">
-          <div class="nav-group-title">Slot Management</div>
-          <router-link to="/admin/slots/providers" class="nav-item">
-            <span class="icon">🏢</span>
-            <span>Providers</span>
-          </router-link>
-          <router-link to="/admin/slots/games" class="nav-item">
-            <span class="icon">🎰</span>
-            <span>Slot Games</span>
-          </router-link>
-          <router-link to="/admin/slots/statistics" class="nav-item">
-            <span class="icon">📊</span>
-            <span>Slot Stats</span>
-          </router-link>
-        </div>
+        <router-link to="/admin/slots/providers" class="nav-item">
+          <span class="icon">🎰</span>
+          <span>Slot Providers</span>
+        </router-link>
+        
+        <router-link to="/admin/slots/games" class="nav-item">
+          <span class="icon">🎮</span>
+          <span>Slot Games</span>
+        </router-link>
         
         <router-link to="/admin/reports" class="nav-item">
           <span class="icon">📈</span>
@@ -125,9 +119,6 @@ const pageTitle = computed(() => {
     'admin.payments.history': 'Payment History',
     'admin.bonuses': 'Bonus Management',
     'admin.games': 'Game Statistics',
-    'admin.slots.providers': 'Slot Providers',
-    'admin.slots.games': 'Slot Games',
-    'admin.slots.statistics': 'Slot Statistics',
     'admin.reports': 'Reports & Analytics',
   };
   return titles[route.name] || 'Admin Panel';

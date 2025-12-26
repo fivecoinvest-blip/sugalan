@@ -14,6 +14,7 @@
           <nav class="nav">
             <router-link to="/" class="nav-link">Home</router-link>
             <router-link to="/games" class="nav-link">Games</router-link>
+            <router-link to="/slots" class="nav-link">🎰 Slots</router-link>
             <router-link v-if="isAuthenticated" to="/dashboard" class="nav-link">Dashboard</router-link>
             <router-link v-if="isAuthenticated" to="/vip" class="nav-link">
               VIP <span class="vip-badge">{{ user?.vip_level?.name || 'Bronze' }}</span>
